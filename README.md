@@ -42,7 +42,7 @@ npm run dev
 
 Vue3 是兼容 Vue2 的，可以使用 Vue2 的写法也可以混合使用（但不建议），下面是用 Vue2 做的点击删除的案例！
 
-![image-20210708102614039](3.assets/image-20210708102614039.png)
+![image-20210708102614039](./3.assets/image-20210708102614039.png)
 
 ```vue
 <template>
@@ -118,8 +118,6 @@ Vue3 推出的组合 API，又称注入 API，因为 composition API 的本质�
 
 <img src="3.assets/image-20210708094705792.png" alt="image-20210708094705792" style="zoom:50%;" />
 
-
-
 ## 02. setup
 
 1、实例创建前调用，执行时机早于 Vue2 中的 `beforeCreate`，它是组合 API 的入口函数
@@ -155,7 +153,6 @@ export default {
 };
 </script>
 ```
-
 
 ## 03. reactive
 
@@ -437,7 +434,7 @@ export default {
 </script>
 ```
 
-<font color="red">🤫注意</font> <font color="#ccc">当你明确知道需要的是一个响应式数据对象，那么就使用 reactive 即可，其他情况使用 ref</font>
+<font color="red">🤫 注意</font> <font color="#ccc">当你明确知道需要的是一个响应式数据对象，那么就使用 reactive 即可，其他情况使用 ref</font>
 
 ## 04. ref
 
@@ -635,7 +632,7 @@ export default {
 
 ### 4.5、转换响应式对象中的某个属性
 
-ref，写法上比较特殊，要小心😏
+ref，写法上比较特殊，要小心 😏
 
 ```vue
 <template>
@@ -670,8 +667,6 @@ export default {
 };
 </script>
 ```
-
-
 
 ## 05. toRef
 
@@ -1036,8 +1031,6 @@ export default {
 </script>
 ```
 
-
-
 ## 10. 递归和非递归监听
 
 ### 10.1、递归监听
@@ -1218,7 +1211,7 @@ export default {
 
 ## 11. toRaw
 
-### 11.1、`原数据` 和 `reactive(原数据)`  之间的关系
+### 11.1、`原数据` 和 `reactive(原数据)` 之间的关系
 
 原 obj 和 state 的关系：state 是根据原 obj 生成的，两者的修改会相互影响，但对 obj 的修改不是响应式的
 
@@ -1729,6 +1722,7 @@ export default {
 };
 </script>
 ```
+
 ## 18. 组件通讯
 
 ### 18.1、父传子
@@ -2035,7 +2029,6 @@ export default {
     },
 };
 </script>
-
 ```
 
 ## 21. Teleport
@@ -2225,17 +2218,17 @@ export default {
 ```js
 const obj = {
     name: 'ifer',
-    age: 18
+    age: 18,
 };
 const copyObj = { ...obj };
-Object.keys(obj).forEach(item => {
+Object.keys(obj).forEach((item) => {
     Object.defineProperty(obj, item, {
         get() {
             return copyObj[item];
         },
         set(newValue) {
             copyObj[item] = newValue;
-        }
+        },
     });
 });
 ```
@@ -2255,15 +2248,15 @@ Object.keys(obj).forEach(item => {
 ```js
 const obj = {
     name: 'ifer',
-    age: 18
+    age: 18,
 };
 const proxyObj = new Proxy(obj, {
     deleteProperty(target, key) {
-        console.log('delete', key)
+        console.log('delete', key);
         delete target[key];
     },
     get(target, key) {
-        console.log('get', key)
+        console.log('get', key);
         return target[key];
     },
     set(target, key, newValue) {
@@ -2354,8 +2347,6 @@ export default {
 </script>
 ```
 
-
-
 ## 26. 生命周期
 
 ### 2.1 `setup`
@@ -2368,21 +2359,21 @@ export default {
 
 ### 2.3 `onMounted`
 
- 挂载 DOM 后
+挂载 DOM 后
 
 ### 2.4 `onBeforeUpdate`
 
 更新组件前
 
-### 2.5 `onUpdated` 
+### 2.5 `onUpdated`
 
 更新组件后
 
-### 2.6 `onBeforeUnmount` 
+### 2.6 `onBeforeUnmount`
 
 卸载销毁前
 
-### 2.7 `onUnmounted` 
+### 2.7 `onUnmounted`
 
 卸载销毁后
 
@@ -2456,12 +2447,3 @@ export default {
 };
 </script>
 ```
-
-
-
-
-
-
-
-
-
