@@ -42,7 +42,7 @@ npm run dev
 
 Vue3 是兼容 Vue2 的，可以使用 Vue2 的写法也可以混合使用（但不建议），下面是用 Vue2 做的点击删除的案例！
 
-![image-20210708102614039](./3.assets/image-20210708102614039.png)
+![image-20210708102614039](3.assets/image-20210708102614039.png)
 
 ```vue
 <template>
