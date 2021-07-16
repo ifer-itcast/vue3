@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <p id="oP"></p>
+    <input type="text" id="oInput">
+    <script>
+        const obj = {
+            name: '',
+            data: {
+                str: ''
+            }
+        };
+
+        const handler = {
+            deleteProperty(target, key) {
+                oP.innerHTML = '';
+                oInput.value = '';
+
+                delete target[key];
+            },
+            get(target, key, receiver) {
+                if (target[key] !== null && typeof target[key] === 'object') {
+                    return new Proxy(target[key], handler)
+                }
+                return target[key];
+            },
+            set(target, key, newValue, receiver) {
+                oP.innerHTML = newValue;
+                oInput.value = newValue;
+
+                target[key] = newValue
+            }
+        };
+
+        const proxyObj = new Proxy(obj, handler);
+
+oInput.oninput = function (e) {
+    proxyObj.data.xxx = e.target.value;
+};
+    </script>
+</body>
+
+</html>

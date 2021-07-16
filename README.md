@@ -484,7 +484,106 @@ export default {
 
 <font color="red">🤫 注意</font> <font color="#ccc">当你明确知道需要的是一个响应式数据对象，那么就使用 reactive 即可，其他情况使用 ref</font>
 
-## 04. 📌 记录鼠标坐标案例
+## 04. Lifecycle
+
+[选项 API](https://v3.cn.vuejs.org/api/options-lifecycle-hooks.html#beforecreate)
+
+[组合 API](https://v3.cn.vuejs.org/api/composition-api.html#%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%E9%92%A9%E5%AD%90)
+
+### 4.1 Hooks
+
+`setup`：实例创建前
+
+`onBeforeMount`：挂载 DOM 前
+
+`onMounted`：挂载 DOM 后
+
+`onBeforeUpdate`：更新组件前
+
+`onUpdated`：更新组件后
+
+`onBeforeUnmount`：卸载销毁前
+
+`onUnmounted`：卸载销毁后
+
+### 4.2 Practise
+
+<font size=2>**Vue3（组合 API）的生命周期钩子有 7 个，可以多次使用同一个钩子，执行顺序和书写顺序相同**</font>
+
+`App.vue`
+
+```vue
+<template>
+    <hello-world v-if="state.bBar" />
+    <button @click="state.bBar = !state.bBar">destroy cmp</button>
+</template>
+
+<script>
+import HelloWorld from './components/HelloWorld.vue';
+import { reactive } from 'vue';
+export default {
+    name: 'App',
+    components: {
+        HelloWorld
+    },
+    setup() {
+        const state = reactive({
+            bBar: true
+        });
+        return {
+            state
+        };
+    }
+};
+</script>
+```
+
+`HelloWorld.vue`
+
+```vue
+<template>
+    <p>{{ state.msg }}</p>
+    <button @click="state.msg = 'xxx'">update msg</button>
+</template>
+
+<script>
+import { onBeforeMount, onMounted, onBeforeUpdate, onUpdated, onBeforeUnmount, onUnmounted, reactive } from 'vue';
+export default {
+    name: 'HelloWorld',
+    setup() {
+        const state = reactive({
+            msg: 'Hello World'
+        });
+
+        onBeforeMount(() => {
+            console.log('onBeforeMount');
+        });
+        onMounted(() => {
+            console.log('onMounted');
+        });
+        onBeforeUpdate(() => {
+            console.log('onBeforeUpdate');
+        });
+        onUpdated(() => {
+            console.log('onUpdated');
+        });
+        onBeforeUnmount(() => {
+            console.log('onBeforeUnmount');
+        });
+        onUnmounted(() => {
+            console.log('onUnmounted');
+        });
+        return {
+            state
+        };
+    }
+};
+</script>
+```
+
+## 05. 📌 reactive and lifecycle
+
+练习：记录鼠标坐标
 
 <font size=3 color="#ccc">1、定义一个响应式数据对象，包含 x 和 y 属性</font>
 
@@ -502,7 +601,7 @@ export default {
 </template>
 
 <script>
-import { onMounted, onUnmounted, reactive, toRefs } from 'vue';
+import { onMounted, onUnmounted, reactive } from 'vue';
 const useMouse = () => {
     const mouse = reactive({
         x: 0,
@@ -531,6 +630,311 @@ export default {
 };
 </script>
 ```
+
+## 06. 🧐 shallowReactive
+
+通过 `reactive` 和 `ref` 创建出来的数据都是递归监听的，如果只想监听第一层的变化可以使用 `shallowReactive`
+
+```vue
+<template>
+    <p>{{ state.age }}</p>
+    <p>{{ state.a.b.c.d }}</p>
+    <button @click="handleChange">change</button>
+</template>
+
+<script>
+import { shallowReactive } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const state = shallowReactive({
+            age: 18,
+            a: {
+                b: {
+                    c: {
+                        d: 'Hello World',
+                    },
+                },
+            },
+        });
+        const handleChange = () => {
+            // 只有第一层是响应式的，可以通过打印观察到
+            // console.log(state);
+            // 第一层的更新会影响到后面（注意 state.age 也必须写到模板上面）
+            state.age = 19;
+            // 如果没有上面的代码直接下面这样写界面是不会更新的
+            state.a.b.c.d = 'xxx';
+        };
+        return { state, handleChange };
+    },
+};
+</script>
+```
+
+
+
+## 07. 🧐 isReactive
+
+检查对象是否是由 [`reactive`](https://v3.cn.vuejs.org/api/basic-reactivity.html#reactive) 创建的响应式代理
+
+```vue
+<template>
+    <p>{{ state.id }}</p>
+    <button @click="check">检查</button>
+</template>
+<script>
+import { isReactive, shallowReactive } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const state = shallowReactive({
+            id: 8,
+            info: {
+                name: 'ifer'
+            }
+        });
+        const check = () => {
+            console.log(isReactive(state)); // true
+            console.log(isReactive(state.info)); // false
+        };
+        return {
+            state,
+            check
+        };
+    }
+};
+</script>
+```
+
+## 08. 🧐 readonly
+
+### 8.1 包装普通对象
+
+```vue
+<template>
+    <p>{{ state.name }}</p>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { readonly } from 'vue';
+
+export default {
+    name: 'App',
+    setup() {
+        const origin = {
+            name: 'ifer'
+        };
+        const state = readonly(origin);
+        const handleClick = () => {
+            state.name = 'xxx';
+            console.log(state.name); // 'ifer'
+            // 思考和 const 的差异？
+            // const 内容可以改，readonly 内容都不可以改
+        };
+        return { state, handleClick };
+    }
+};
+</script>
+```
+
+### 8.2 包装响应式对象
+
+```vue
+<template>
+    <p>{{ state.name }}</p>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { reactive, readonly } from 'vue';
+
+export default {
+    name: 'App',
+    setup() {
+        const origin = reactive({
+            name: 'ifer'
+        });
+        // 包装响应式对象，同样不能修改
+        const state = readonly(origin);
+        const handleClick = () => {
+            state.name = 'xxx';
+            console.log(state.name);
+        };
+        return { state, handleClick };
+    }
+};
+</script>
+```
+
+## 09. 🧐 shallowReadonly
+
+```vue
+<template>
+    <p>{{ state.name }}</p>
+    <p>{{ state.info.sex }}</p>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { shallowReadonly } from 'vue';
+
+export default {
+    name: 'App',
+    setup() {
+        // shallowReadonly 创建的数据只是第一层只读
+        const state = shallowReadonly({
+            name: 'ifer',
+            info: {
+                sex: 'man',
+            },
+        });
+        const handleClick = () => {
+            state.name = 'xxx';
+            state.info.sex = '男';
+            console.log(state.name); // 'ifer'，第一层的修改没有变化
+            console.log(state.info.sex); // '男'，第二层的修改变化了
+        };
+        return { state, handleClick };
+    },
+};
+</script>
+```
+
+## 10. 🧐 isReadonly
+
+检查对象是否是由 [`readonly`](https://v3.cn.vuejs.org/api/basic-reactivity.html#readonly) 创建的只读代理
+
+```vue
+<template>
+    <p>{{ state.id }}</p>
+    <button @click="check">检查</button>
+</template>
+<script>
+import { isReadonly, readonly } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const state = readonly({
+            id: 8,
+            info: {
+                name: 'ifer'
+            }
+        });
+        const check = () => {
+            console.log(isReadonly(state)); // true
+            console.log(isReadonly(state.info)); // true
+        };
+        return {
+            state,
+            check
+        };
+    }
+};
+</script>
+```
+
+## 11. 🧐 isProxy
+
+检查对象是否是由 [`reactive`](https://v3.cn.vuejs.org/api/basic-reactivity.html#reactive) 或 [`readonly`](https://v3.cn.vuejs.org/api/basic-reactivity.html#readonly) 创建的 proxy
+
+```vue
+<template>
+    <p>{{ state.name }}</p>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { isProxy, reactive, readonly } from 'vue';
+
+export default {
+    name: 'App',
+    setup() {
+        const origin = {
+            name: 'ifer'
+        };
+        const state = readonly(origin);
+
+        const handleClick = () => {
+            console.log(isProxy(origin)); // false
+            console.log(isProxy(state)); // true
+
+            console.log(isProxy(reactive(origin))); // true
+        };
+        return { state, handleClick };
+    }
+};
+</script>
+```
+
+
+
+
+
+## 12. 🧐 toRaw
+
+返回 [`reactive`](https://v3.cn.vuejs.org/api/basic-reactivity.html#reactive) 或 [`readonly`](https://v3.cn.vuejs.org/api/basic-reactivity.html#readonly) 代理的原始对象
+
+```vue
+<template>Hello World</template>
+<script>
+import { reactive, readonly, toRaw } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const origin = {
+            name: 'ifer'
+        };
+        // origin 和 state1 的关系：state1 是根据 origin 生成的，两者的修改会相互影响，但对 origin 的修改不是响应式的
+        const state1 = reactive(origin);
+        const state2 = readonly(origin);
+
+        console.log(toRaw(state1) === toRaw(state2)); // true
+        console.log(toRaw(state1) === origin); // true
+    }
+};
+</script>
+```
+
+<font color="red" size=2>注意：获取 ref 类型的数据必须带 `.value`</font>
+
+## 13. 🧐 markRaw
+
+`markRaw` 包装后的数据将不被追踪变化，即便通过 `reactive` 也不能变成响应式数据
+
+```vue
+<template>
+    <p>{{ state }}</p>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { reactive, markRaw } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        let obj = {
+            name: 'ifer',
+            age: 18,
+        };
+        // obj 将不被追踪，无法成为响应式数据
+        obj = markRaw(obj);
+        const state = reactive(obj);
+        const handleClick = () => {
+            state.name = 'xxx';
+        };
+        return {
+            state,
+            handleClick,
+        };
+    },
+};
+</script>
+```
+
+------
+
+Todo：官方文档 ref、组合 API、细节变化...
 
 ## 05. ref
 
@@ -1464,209 +1868,6 @@ export default {
 </script>
 ```
 
-## 11. 🧐 toRaw
-
-### 11.1、`原数据` 和 `reactive(原数据)` 之间的关系
-
-原 obj 和 state 的关系：state 是根据原 obj 生成的，两者的修改会相互影响，但对 obj 的修改不是响应式的
-
-```vue
-<template>
-    <p>{{ state }}</p>
-    <button @click="handleClick">click</button>
-</template>
-
-<script>
-import { reactive } from 'vue';
-export default {
-    name: 'App',
-    setup() {
-        const obj = {
-            name: 'ifer',
-            age: 18,
-        };
-        // state 是一个新的 Proxy 对象，这个对象是根据 obj 生成的
-        const state = reactive(obj);
-        // console.log(obj === state); // false
-        const handleClick = () => {
-            obj.name = 'xxx';
-            // 因为 state 是根据 obj 生成的，所以修改 obj 会影响 state，但不是响应式的
-            console.log(state.name);
-        };
-        return { state, handleClick };
-    },
-};
-</script>
-```
-
-### 11.2、获取 reactive 原数据
-
-`toRaw`：获取 `reactive` 原数据
-
-```vue
-<template>
-    <p>{{ state }}</p>
-    <button @click="handleClick">click</button>
-</template>
-
-<script>
-import { reactive, toRaw } from 'vue';
-export default {
-    name: 'App',
-    setup() {
-        const obj1 = {
-            name: 'ifer',
-            age: 18,
-        };
-        const state = reactive(obj1);
-        // toRaw 可以获取 ref 或 reactive 类型的原始数据
-        // 应用场景：当有一些操作不需要更新 UI 界面的化，可以用此方法提升性能
-        const obj2 = toRaw(state);
-        console.log(obj1 === obj2); // true
-        const handleClick = () => {
-            // 无论对原 obj1 和还是对通过 toRaw 取出来的对象的修改都不是响应式的
-            obj1.name = 'xxx';
-            // obj2.name = 'xxx';
-        };
-        return { state, handleClick };
-    },
-};
-</script>
-```
-
-### 11.3、获取 ref 原数据
-
-toRaw：获取 ref 的原数据
-
-```vue
-<template>
-    <p>{{ state }}</p>
-    <button @click="handleClick">click</button>
-</template>
-
-<script>
-import { toRaw, ref } from 'vue';
-export default {
-    name: 'App',
-    setup() {
-        const obj1 = {
-            name: 'ifer',
-            age: 18,
-        };
-        const state = ref(obj1);
-
-        console.log(state === toRaw(state)); // true
-
-        // 必须通过 toRaw(state.value) 才能得到原始数据
-        console.log(obj1 === toRaw(state.value)); // true
-
-        const handleClick = () => {
-            obj1.name = 'xxx';
-        };
-        return { state, handleClick };
-    },
-};
-</script>
-```
-
-## 12. 🧐 markRaw
-
-`markRaw` 包装后的数据将不被追踪变化，即便通过 `reactive` 也不能变成响应式数据
-
-```vue
-<template>
-    <p>{{ state }}</p>
-    <button @click="handleClick">click</button>
-</template>
-
-<script>
-import { reactive, markRaw } from 'vue';
-export default {
-    name: 'App',
-    setup() {
-        let obj = {
-            name: 'ifer',
-            age: 18,
-        };
-        // obj 将不被追踪，无法成为响应式数据
-        obj = markRaw(obj);
-        const state = reactive(obj);
-        const handleClick = () => {
-            state.name = 'xxx';
-        };
-        return {
-            state,
-            handleClick,
-        };
-    },
-};
-</script>
-```
-
-## 13. 🧐 readonly
-
-```vue
-<template>
-    <p>{{ state.name }}</p>
-    <button @click="handleClick">click</button>
-</template>
-
-<script>
-import { readonly } from 'vue';
-
-export default {
-    name: 'App',
-    setup() {
-        const state = readonly({
-            name: 'ifer',
-        });
-        const handleClick = () => {
-            state.name = 'xxx';
-            // const 内容可以改，readonly 内容都不可以改
-            console.log(state.name); // 'ifer'
-        };
-        return { state, handleClick };
-    },
-};
-</script>
-```
-
-shallowReadonly
-
-```vue
-<template>
-    <p>{{ state.name }}</p>
-    <p>{{ state.info.sex }}</p>
-    <button @click="handleClick">click</button>
-</template>
-
-<script>
-import { shallowReadonly } from 'vue';
-
-export default {
-    name: 'App',
-    setup() {
-        // shallowReadonly 创建的数据只是第一层只读
-        const state = shallowReadonly({
-            name: 'ifer',
-            info: {
-                sex: 'man',
-            },
-        });
-        const handleClick = () => {
-            state.name = 'xxx';
-            state.info.sex = '男';
-            console.log(state.name); // 'ifer'，第一层的修改没有变化
-            console.log(state.info.sex); // '男'，第二层的修改变化了
-        };
-        return { state, handleClick };
-    },
-};
-</script>
-```
-
-
-
 ## 15. computed
 
 ```vue
@@ -2480,64 +2681,7 @@ export default {
 
 之前写法，现在写法
 
-## 24. Proxy
 
-**`Object.defineProperty`**
-
-```js
-const obj = {
-    name: 'ifer',
-    age: 18,
-};
-const copyObj = { ...obj };
-Object.keys(obj).forEach((item) => {
-    Object.defineProperty(obj, item, {
-        get() {
-            return copyObj[item];
-        },
-        set(newValue) {
-            copyObj[item] = newValue;
-        },
-    });
-});
-```
-
-1、只能对已存在的属性进行劫持，后续添加的属性没有感知（不具有响应式），删除属性没有感知
-
-2、在 get 和 set 里面不能直接对原对象进行操作，否则会栈溢出；需要深拷贝一份原对象（可能会有性能问题）
-
-3、对象里面还有复杂数据类型的话，需要递归劫持里面的**每一个属性**（性能问题）
-
-4、Vue 没有提供对数组的监听（并不是 Object.defineProperty 不支持对数组的劫持），性能问题！
-
-[#8562](https://hub.fastgit.org/vuejs/vue/issues/8562)
-
-**`Proxy`**
-
-```js
-const obj = {
-    name: 'ifer',
-    age: 18,
-};
-const proxyObj = new Proxy(obj, {
-    deleteProperty(target, key) {
-        console.log('delete', key);
-        delete target[key];
-    },
-    get(target, key) {
-        console.log('get', key);
-        return target[key];
-    },
-    set(target, key, newValue) {
-        console.log(newValue);
-        target[key] = newValue;
-    },
-});
-```
-
-Proxy 可以解决以上所有问题，注意 Proxy 监听的是整个对象，但是不能深度监听（对象里面还有复杂数据类型的话还是需要递归，但操作的是整个对象，而不需递归对象里面的每一个属性，性能也得到了大大的提升）
-
-==核心一句话，换成 Proxy 主要是出于性能考虑！==
 
 ## 25. 📌 留言板
 
@@ -2630,106 +2774,7 @@ input::-webkit-inner-spin-button {
 
 ### 25.2、Vue3
 
-## 26. LifecycleHooks
 
-### 26.1、`setup`
-
-实例创建前
-
-### 26.2、`onBeforeMount`
-
-挂载 DOM 前
-
-### 26.3、`onMounted`
-
-挂载 DOM 后
-
-### 26.4、`onBeforeUpdate`
-
-更新组件前
-
-### 26.5、`onUpdated`
-
-更新组件后
-
-### 26.6、`onBeforeUnmount`
-
-卸载销毁前
-
-### 26.7、`onUnmounted`
-
-卸载销毁后
-
-### 26.8、test
-
-<font size=2>**Vue3（组合 API）的生命周期钩子有 7 个，可以多次使用同一个钩子，执行顺序和书写顺序相同**</font>
-
-App.vue
-
-```vue
-<template>
-    <hello-world v-if="bBar" />
-    <button @click="bBar = !bBar">destroy cmp</button>
-</template>
-
-<script>
-import HelloWorld from './components/HelloWorld.vue';
-import { ref } from 'vue';
-export default {
-    name: 'App',
-    components: {
-        HelloWorld,
-    },
-    setup() {
-        const bBar = ref(true);
-        return {
-            bBar,
-        };
-    },
-};
-</script>
-```
-
-HelloWorld.vue
-
-```vue
-<template>
-    <p>{{ msg }}</p>
-    <button @click="msg = 'xxx'">update msg</button>
-</template>
-
-<script>
-import { onBeforeMount, onMounted, onBeforeUpdate, onUpdated, onBeforeUnmount, onUnmounted, ref } from 'vue';
-export default {
-    name: 'HelloWorld',
-    setup() {
-        const msg = ref('Hello World');
-
-        onBeforeMount(() => {
-            console.log('onBeforeMount');
-        });
-        onMounted(() => {
-            console.log('onMounted');
-        });
-        onBeforeUpdate(() => {
-            console.log('onBeforeUpdate');
-        });
-        onUpdated(() => {
-            console.log('onUpdated');
-        });
-        onBeforeUnmount(() => {
-            console.log('onBeforeUnmount');
-        });
-        onUnmounted(() => {
-            console.log('onUnmounted');
-        });
-        return {
-            msg,
-        };
-    },
-};
-</script>
-```
 
 ## 27. 📌 TodoList
 
@@ -4473,3 +4518,406 @@ export default {
 </style>
 ```
 
+## 20. 📌 记录鼠标坐标（复用）
+
+<img src="README.assets/image-20210715005314855.png" alt="image-20210715005314855" style="zoom:67%;" />
+
+```vue
+<template>
+    <div ref="oDiv" class="box"></div>
+</template>
+
+<script>
+import { onMounted, ref } from 'vue';
+const useHua = () => {
+    const oDiv = ref(null);
+
+    onMounted(() => {
+        oDiv.value.onmousedown = function (e) {
+            const arr = [];
+            let timer = null;
+            let disX = e.pageX - this.offsetLeft;
+            let disY = e.pageY - this.offsetTop;
+            document.onmousemove = function (e) {
+                let x = e.pageX - disX;
+                let y = e.pageY - disY;
+                const oI = document.createElement('i');
+                oI.style.position = 'absolute';
+                oI.style.width = 10 + 'px';
+                oI.style.height = 10 + 'px';
+                oI.style.backgroundColor = 'black';
+                oI.style.left = x + 'px';
+                oI.style.top = y + 'px';
+                document.body.appendChild(oI);
+                arr.push({
+                    x,
+                    y,
+                    i: oI
+                });
+                oDiv.value.style.left = x + 'px';
+                oDiv.value.style.top = y + 'px';
+            };
+            document.onmouseup = function () {
+                let i = arr.length - 1;
+                timer = setInterval(function () {
+                    oDiv.value.style.left = arr[i].x + 'px';
+                    oDiv.value.style.top = arr[i].y + 'px';
+                    document.body.removeChild(arr[i].i);
+                    i--;
+                    if (i < 0) {
+                        clearInterval(timer);
+                    }
+                }, 30);
+                this.onmousemove = this.onmouseup = null;
+            };
+            return false;
+        };
+    });
+    return oDiv;
+};
+export default {
+    name: 'App',
+    setup() {
+        const oDiv = useHua();
+        return {
+            oDiv
+        };
+    }
+};
+</script>
+<style scoped>
+.box {
+    width: 100px;
+    height: 100px;
+    background: red;
+    position: absolute;
+}
+</style>
+```
+
+## 06. 🧔 Proxy
+
+问题：为什么 Vue3 把处理双向数据绑定的 API 换成了 Proxy？
+
+### 6.1 Object.defineProperty
+
+1、对象中的 1 个属性是响应式
+
+```html
+<p id="oP"></p>
+<input type="text" id="oInput">
+<script>
+    const obj = {
+        name: '',
+    };
+
+    const objCopy = { ...obj };
+
+    Object.defineProperty(obj, 'name', {
+        get() {
+            return objCopy.name
+        },
+        set(newValue) {
+            oP.innerHTML = newValue;
+            oInput.value = newValue;
+            objCopy.name = newValue;
+        }
+    });
+    // view 到 model 通过 DOM listen
+    oInput.oninput = function (e) {
+        obj.name = e.target.value;
+    };
+</script>
+```
+
+2、多个属性时怎么办？
+
+```js
+const obj = {
+    name: '',
+    info: ''
+};
+
+// ...
+oInput.oninput = function (e) {
+    obj.info = e.target.value;
+};
+```
+
+3、解决多个属性的响应式
+
+```html
+<p id="oP"></p>
+<input type="text" id="oInput">
+<script>
+    const obj = {
+        name: '',
+        info: ''
+    };
+
+    const objCopy = { ...obj };
+
+    Object.keys(obj).forEach(key => {
+        Object.defineProperty(obj, key, {
+            get() {
+                return objCopy[key]
+            },
+            set(newValue) {
+                oP.innerHTML = newValue;
+                oInput.value = newValue;
+                objCopy[key] = newValue;
+            }
+        });
+    });
+    // view 到 model 通过 DOM listen
+    oInput.oninput = function (e) {
+        obj.info = e.target.value;
+    };
+</script>
+```
+
+4、提取 `defineReactive` 方法
+
+```html
+<p id="oP"></p>
+<input type="text" id="oInput">
+<script>
+    const obj = {
+        name: '',
+        info: ''
+    };
+
+    const objCopy = { ...obj };
+
+    Object.keys(obj).forEach(key => {
+        defineReactive(obj, key, objCopy[key])
+    });
+    // 提取 defineReactive 方法
+    function defineReactive(obj, key, value) {
+        Object.defineProperty(obj, key, {
+            get() {
+                return value
+            },
+            set(newValue) {
+                oP.innerHTML = newValue;
+                oInput.value = newValue;
+                value = newValue;
+            }
+        });
+    }
+    // view 到 model 通过 DOM listen
+    oInput.oninput = function (e) {
+        obj.info = e.target.value;
+    };
+</script>
+```
+
+5、删除掉 objCopy
+
+```js
+Object.keys(obj).forEach(key => {
+    defineReactive(obj, key, obj[key])
+});
+```
+
+6、嵌套对象时怎么办？
+
+```js
+const obj = {
+    name: '',
+    info: '',
+    data: {
+        str: ''
+    }
+};
+
+// 对象嵌套时的问题
+oInput.oninput = function (e) {
+    obj.data.str = e.target.value;
+};
+```
+
+7、递归劫持
+
+```vue
+<p id="oP"></p>
+<input type="text" id="oInput">
+<script>
+const obj = {
+    name: '',
+    info: '',
+    data: {
+        str: ''
+    },
+};
+
+// #2
+walk(obj);
+// #1
+function walk(obj) {
+    // #4
+    if (!obj || typeof obj !== 'object') return;
+    Object.keys(obj).forEach(key => {
+        defineReactive(obj, key, obj[key])
+    });
+}
+function defineReactive(obj, key, value) {
+    // #3
+    walk(value);
+    Object.defineProperty(obj, key, {
+        get() {
+            return value
+        },
+        set(newValue) {
+            oP.innerHTML = newValue;
+            oInput.value = newValue;
+            value = newValue;
+        }
+    });
+}
+oInput.oninput = function (e) {
+    obj.data.str = e.target.value;
+};
+```
+
+### 6.2 存在的问题
+
+1、只能对已存在的属性进行劫持，后续添加的属性没有感知（不具有响应式），删除属性没有感知
+
+2、~~<font color="#ccc">在 get 和 set 里面不能直接对原对象进行操作，否则会栈溢出；需要深拷贝一份原对象（可能会有性能问题）</font>~~
+
+3、对象里面还有复杂数据类型的话，需要递归劫持里面的**每一个属性**（性能问题）
+
+4、Vue 没有提供对数组的监听（并不是 `Object.defineProperty` 不支持对数组的劫持），性能问题！
+
+[#8562](https://hub.fastgit.org/vuejs/vue/issues/8562)
+
+### 6.3 Proxy
+
+Proxy 可以解决以上所有问题，注意 Proxy 监听的直接是对象，虽然对象里面还有复杂数据类型的话还是需要递归，但递归的是整个对象，而不需要递归对象里面的每一个属性，性能也得到了大大的提升！
+
+==核心一句话，换成 Proxy 主要是出于性能考虑！==
+
+1、一个或多个属性
+
+```vue
+<p id="oP"></p>
+<input type="text" id="oInput">
+<script>
+    const obj = {
+        name: '',
+    };
+
+    // 注意：以后所有的操作都交个代理对象进行即可
+    const proxyObj = new Proxy(obj, {
+        get(target, key, receiver) {
+            // console.log(proxyObj === receiver); // true
+            return target[key];
+        },
+        set(target, key, newValue, receiver) {
+            // console.log(proxyObj === receiver); // true
+            oP.innerHTML = newValue;
+            oInput.value = newValue;
+
+            target[key] = newValue
+        }
+    })
+
+    oInput.oninput = function (e) {
+        proxyObj.name = e.target.value;
+    };
+</script>
+```
+
+了解其他写法
+
+```js
+const obj = {
+    name: '',
+};
+
+// 注意：以后所有的操作都交个代理对象进行即可
+const proxyObj = new Proxy(obj, {
+    get(target, key, receiver) {
+        // return target[key];
+        return Reflect.get(...arguments);
+    },
+    set(target, key, newValue, receiver) {
+        oP.innerHTML = newValue;
+        oInput.value = newValue;
+
+        // target[key] = newValue
+        Reflect.set(...arguments);
+    }
+})
+
+oInput.oninput = function (e) {
+    proxyObj.name = e.target.value;
+};
+```
+
+2、嵌套对象时怎么办？
+
+```js
+const obj = {
+    name: '',
+    data: {
+        str: ''
+    }
+};
+
+const handler = {
+    get(target, key, receiver) {
+        if (target[key] !== null && typeof target[key] === 'object') {
+            return new Proxy(target[key], handler)
+        }
+        return target[key];
+    },
+    set(target, key, newValue, receiver) {
+        oP.innerHTML = newValue;
+        oInput.value = newValue;
+
+        target[key] = newValue
+    }
+};
+
+const proxyObj = new Proxy(obj, handler);
+
+oInput.oninput = function (e) {
+    proxyObj.data.str = e.target.value;
+};
+```
+
+3、拦截删除功能
+
+```js
+const handler = {
+    deleteProperty(target, key) {
+        oP.innerHTML = '';
+        oInput.value = '';
+
+        delete target[key];
+    },
+    get(target, key, receiver) {
+        if (target[key] !== null && typeof target[key] === 'object') {
+            return new Proxy(target[key], handler)
+        }
+        return target[key];
+    },
+    set(target, key, newValue, receiver) {
+        oP.innerHTML = newValue;
+        oInput.value = newValue;
+
+        target[key] = newValue
+    }
+};
+```
+
+4、测试给对象中不存在的 key 添加数据
+
+```js
+// 也是响应式的
+oInput.oninput = function (e) {
+    proxyObj.data.xxx = e.target.value;
+};
+```
