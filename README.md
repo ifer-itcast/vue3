@@ -918,6 +918,7 @@ export default {
             age: 18,
         };
         // obj 将不被追踪，无法成为响应式数据
+        // obj = markRaw(obj);
         obj = markRaw(obj);
         const state = reactive(obj);
         const handleClick = () => {
@@ -936,9 +937,9 @@ export default {
 
 Todo：官方文档 ref、组合 API、细节变化...
 
-## 05. ref
+## 14. ref
 
-### 5.1、定义响应式数据
+### 14.1、定义响应式数据
 
 `ref` 函数，常用于把简单数据类型定义为响应式数据，注意 JS 中修改 ref 类型的值需要加 `.value`，模板中使用 ref 类型的值可以省略 `.value`
 
@@ -1003,7 +1004,7 @@ export default {
 
 Vue 内部会使用 `isRef` 和 `isReactive` 方法来判断是 `ref` 还是 `reactive` 数据，以此来决定是否添加 `.value`
 
-### 5.2、计数器
+### 14.2、计数器
 
 ```vue
 <template>
@@ -1037,7 +1038,7 @@ export default {
 </script>
 ```
 
-### 5.3、获取元素或组件实例
+### 14.3、获取元素或组件实例
 
 [参考文档](https://v3.cn.vuejs.org/guide/composition-api-template-refs.html#%E6%A8%A1%E6%9D%BF%E5%BC%95%E7%94%A8)
 
@@ -1069,18 +1070,20 @@ export default {
 </script>
 ```
 
-获取 v-for 遍历的 DOM 或组件
+获取 v-for 遍历的 DOM 或组件，ref 可以指定为一个函数，函数里面的参数就是每一个 DOM 元素
+
+<font size=2 color=red>注意：这里和 `import { ref } from 'vue'` 没什么关系，但都是获取元素，就放一起说了！</font>
 
 ```vue
 <template>
     <ul>
-        <!-- #4 -->
+        <!-- #4: 注意是 v-bind: 动态绑定的 -->
         <li :ref="setDom" v-for="item in 'ifer'" :key="item">{{ item }}</li>
     </ul>
 </template>
 
 <script>
-import { onMounted, ref } from 'vue';
+import { onMounted } from 'vue';
 export default {
     name: 'App',
     setup() {
@@ -1102,9 +1105,7 @@ export default {
 </script>
 ```
 
-### 5.4、转换原始对象中的某个属性
-
-ref，“拷贝，不会影响原，响应式”
+### 14.4、转换原始对象中的某个属性为响应式
 
 ```vue
 <template>
@@ -1121,12 +1122,12 @@ export default {
             name: 'ifer',
             age: 18,
         };
-        // 这样写本质是把 obj.name 取出来了复制了一份
+        // 这样写本质是把 obj.name 取出来了复制了一份，所以对 state 的修改不会影响原 obj
         const state = ref(obj.name);
 
         const handleClick = () => {
             state.value = 'xxx';
-            console.log(obj); // 注意点：原对象 obj 中的数据并没有变化，即对 state 的操作并不会影响原数据
+            console.log(obj);
         };
         return {
             state,
@@ -1137,7 +1138,7 @@ export default {
 </script>
 ```
 
-转换原始对象为响应式对象，了解即可，主流写法还是用 reactive 进行包装
+包装原始对象为响应式对象，了解即可，主流写法还是直接用 reactive 进行包装
 
 ```vue
 <template>
@@ -1154,12 +1155,12 @@ export default {
             name: 'ifer',
             age: 18
         };
+        // state 是根据复杂数据类型 obj 生成的一个响应式对象，对 state 中内容的修改会影响原对象 obj
         const state = ref(obj);
 
         const handleClick = () => {
             state.value.name = 'xxx';
             state.value.age = 19;
-            // 会影响原数据
             console.log(obj);
         };
         return {
@@ -1171,11 +1172,48 @@ export default {
 </script>
 ```
 
-### 5.5、转换响应式对象中的某个属性
+### 14.5、转换响应式对象中的某个属性为响应式
+
+需求：只想把响应式对象中的某个属性倒出去供模板使用
+
+问题：发现丢失了响应式
 
 ```vue
 <template>
-    <p>{{ state }}</p>
+    <p>{{ name }}</p>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { reactive } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const obj = reactive({
+            name: 'ifer',
+            age: 18
+        });
+        // 解构赋值会使 name 失去响应式，【只有从 obj 这个对象出发操作里面的数据才是响应式的】！
+        // let { name } = obj;
+        // 类似的操作还有
+        let name = obj.name;
+        const handleClick = () => {
+            name = 'xxx';
+        };
+        return {
+            name,
+            handleClick
+        };
+    }
+};
+</script>
+```
+
+解决：`let name = ref(obj.name);`
+
+```vue
+<template>
+    <p>{{ name }}</p>
     <button @click="handleClick">click</button>
 </template>
 
@@ -1184,19 +1222,16 @@ import { reactive, ref } from 'vue';
 export default {
     name: 'App',
     setup() {
-        let obj = reactive({
+        const obj = reactive({
             name: 'ifer',
             age: 18
         });
-        // 这样写本质是把 obj.name 取出来了复制了一份
-        const state = ref(obj.name);
-
+        let name = ref(obj.name);
         const handleClick = () => {
-            state.value = 'xxx';
-            console.log(obj); // 注意点：原对象 obj 中的数据并没有变化，即对 state 的操作并不会影响原数据
+            name.value = 'xxx';
         };
         return {
-            state,
+            name,
             handleClick
         };
     }
@@ -1204,48 +1239,15 @@ export default {
 </script>
 ```
 
-## 06. toRef
+## 15. toRef
 
-### 6.1、转换原始对象中的属性
+### 15.1、转换原始对象中的属性
 
 [官方文档](https://v3.cn.vuejs.org/api/refs-api.html#toref)
 
-toRef，“引用，影响原，非响应”
+toRef(普通对象)，影响原，**非响应**
 
-```vue
-<template>
-    <p>{{ state }}</p>
-    <button @click="handleClick">click</button>
-</template>
-
-<script>
-import { toRef } from 'vue';
-export default {
-    name: 'App',
-    setup() {
-        let obj = {
-            name: 'ifer',
-            age: 18,
-        };
-        // 通过 toRef 将一个对象中的属性变成 ref 数据
-        const state = toRef(obj, 'name');
-
-        const handleClick = () => {
-            state.value = 'xxx';
-
-            // 修改转换后的 ref 数据会影响到原数据，//!但不会触发视图更新！
-            console.log(obj);
-        };
-        return {
-            state,
-            handleClick,
-        };
-    },
-};
-</script>
-```
-
-### 6.2、转换响应式对象中的某个属性
+![image-20210717195522209](README.assets/image-20210717195522209.png)
 
 ```vue
 <template>
@@ -1258,30 +1260,162 @@ import { reactive, toRef } from 'vue';
 export default {
     name: 'App',
     setup() {
-        let obj = reactive({
+        const obj = {
             name: 'ifer',
-            age: 18,
-        });
+            age: 18
+        };
+        // 通过 toRef 将一个对象中的属性变成 ref 数据
         const state = toRef(obj, 'name');
+        console.log(state);
 
         const handleClick = () => {
-            // !注意这里的修改方式和之前不一样了
             state.value = 'xxx';
-            // 会影响原数据也会触发视图更新
+
+            // 修改转换后的 ref 数据会影响到原数据，//!但不会触发视图更新！
             console.log(obj);
         };
         return {
             state,
-            handleClick,
+            handleClick
+        };
+    }
+};
+</script>
+```
+
+### 15.2、转换响应式对象中的某个属性
+
+toRef(响应式对象)，影响原，**响应**
+
+![image-20210717195824355](README.assets/image-20210717195824355.png)
+
+```vue
+<template>
+    <p>{{ state }}</p>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { reactive, toRef } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const obj = reactive({
+            name: 'ifer',
+            age: 18
+        });
+        // 通过 toRef 将一个对象中的属性变成 ref 数据
+        const state = toRef(obj, 'name');
+        console.log(state);
+
+        const handleClick = () => {
+            state.value = 'xxx';
+
+            // 修改转换后的 ref 数据会影响到原数据，视图也更新了
+            console.log(obj);
+        };
+        return {
+            state,
+            handleClick
+        };
+    }
+};
+</script>
+```
+
+
+
+## 16. toRefs
+
+### 16.1 基本使用
+
+[参考文档](https://v3.cn.vuejs.org/guide/reactivity-fundamentals.html#%E5%93%8D%E5%BA%94%E5%BC%8F%E7%8A%B6%E6%80%81%E8%A7%A3%E6%9E%84)
+
+`toRefs` 是函数，一般用来转换响应式对象中所有属性为单独响应式数据，并且转换后的值和原对象是关联的
+
+```vue
+<template>
+    <p>{{ username }}</p>
+    <button @click="updateUserInfo">update</button>
+</template>
+
+<script>
+import { reactive, toRefs } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const userInfo = reactive({
+            username: 'ifer',
+            age: 18,
+        });
+
+        const obj = toRefs(userInfo);
+
+        const updateUserInfo = () => {
+            // toRefs 转换的数据最后要加 .value，reactive 类型的数据则不用
+            // obj.username.value = 'xxx';
+            userInfo.username = 'xxx';
+        };
+
+        return {
+            ...obj,
+            updateUserInfo,
         };
     },
 };
 </script>
 ```
 
-## 07. 易错点
+### 16.2 举个例子
 
-### 7.1、需求
+```vue
+<template>
+    <div>x: {{ mouse.x }} y: {{ mouse.y }}</div>
+</template>
+
+<script>
+import { onMounted, onUnmounted, reactive, toRefs } from 'vue';
+const useMouse = () => {
+    const mouse = reactive({
+        x: 0,
+        y: 0
+    });
+    const move = (e) => {
+        mouse.x = e.pageX;
+        mouse.y = e.pageY;
+    };
+    onMounted(() => {
+        document.addEventListener('mousemove', move);
+    });
+    onUnmounted(() => {
+        document.removeEventListener('mousemove', move);
+    });
+    return mouse;
+};
+export default {
+    name: 'App',
+    setup() {
+        const mouse = useMouse();
+        // !错误写法
+        /* return {
+            x: mouse.x,
+            y: mouse.y
+        }; */
+        // return mouse;
+        /* return {
+            ...toRefs(mouse)
+        }; */
+        return {
+            mouse
+        };
+    }
+};
+</script>
+```
+
+## 17. 📌 易错点
+
+### 17.1、需求
 
 需求：只想把用到的 username 掏出去，问题：数据不是响应式的了
 
@@ -1350,7 +1484,7 @@ export default {
 </script>
 ```
 
-### 7.2、ref 解决
+### 17.2、ref 解决
 
 ```vue
 <template>
@@ -1385,7 +1519,7 @@ export default {
 </script>
 ```
 
-### 7.3、toRef 解决
+### 17.3、toRef 解决
 
 解决：toRef 是函数，可以转换**响应式对象**中某个属性为单独响应式数据，并且转换后的值和原对象是是关联的
 
@@ -1422,7 +1556,7 @@ export default {
 </script>
 ```
 
-### 7.4、toRefs 解决
+### 17.4、toRefs 解决
 
 ```vue
 <template>
@@ -1459,97 +1593,24 @@ export default {
 </script>
 ```
 
-## 08. toRefs
-
-### 8.1 基本使用
-
-[参考文档](https://v3.cn.vuejs.org/guide/reactivity-fundamentals.html#%E5%93%8D%E5%BA%94%E5%BC%8F%E7%8A%B6%E6%80%81%E8%A7%A3%E6%9E%84)
-
-`toRefs` 是函数，转换响应式对象中所有属性为单独响应式数据，并且转换后的值和原对象是关联的
+## 18. 🧐 unRef
 
 ```vue
-<template>
-    <p>{{ username }}</p>
-    <button @click="updateUserInfo">update</button>
-</template>
-
 <script>
-import { reactive, toRefs } from 'vue';
+import { unref, ref } from 'vue';
 export default {
     name: 'App',
     setup() {
-        const userInfo = reactive({
-            username: 'ifer',
-            age: 18,
-        });
-
-        const obj = toRefs(userInfo);
-
-        const updateUserInfo = () => {
-            // toRefs 转换的数据最后要加 .value，reactive 类型的数据则不用
-            // obj.username.value = 'xxx';
-            userInfo.username = 'xxx';
-        };
-
-        return {
-            ...obj,
-            updateUserInfo,
-        };
-    },
-};
-</script>
-```
-
-### 8.2 举个例子
-
-```vue
-<template>
-    <div>x: {{ mouse.x }} y: {{ mouse.y }}</div>
-</template>
-
-<script>
-import { onMounted, onUnmounted, reactive, toRefs } from 'vue';
-const useMouse = () => {
-    const mouse = reactive({
-        x: 0,
-        y: 0
-    });
-    const move = (e) => {
-        mouse.x = e.pageX;
-        mouse.y = e.pageY;
-    };
-    onMounted(() => {
-        document.addEventListener('mousemove', move);
-    });
-    onUnmounted(() => {
-        document.removeEventListener('mousemove', move);
-    });
-    return mouse;
-};
-export default {
-    name: 'App',
-    setup() {
-        const mouse = useMouse();
-        // !错误写法
-        /* return {
-            x: mouse.x,
-            y: mouse.y
-        }; */
-        // return mouse;
-        /* return {
-            ...toRefs(mouse)
-        }; */
-        return {
-            mouse
-        };
+        const count = ref(0);
+        console.log(unref(count)); // 0，等价于 isRef(count) ? count.value : count
     }
 };
 </script>
 ```
 
-## 09. 🧐 customRef
+## 19. 🧐 customRef
 
-### 9.1、基本语法
+### 19.1、基本语法
 
 ```vue
 <template>
@@ -1596,7 +1657,7 @@ export default {
 </script>
 ```
 
-### 9.2、请求数据
+### 19.2、请求数据
 
 ```vue
 <template>
@@ -1627,7 +1688,7 @@ export default {
 </script>
 ```
 
-### 9.3、封装接口
+### 19.3、封装接口
 
 ```vue
 <template>
@@ -1690,108 +1751,7 @@ export default {
 </script>
 ```
 
-## 10. 🧐 递归和非递归监听
-
-### 10.1、递归监听
-
-通过 `reactive` 和 `ref` 创建出来的数据都是递归监听的，下面是 `reactive` 数据演示
-
-```js
-<template>
-    {{ state.a.b.c.d }}
-    <button @click="state.a.b.c.d = 'xxx'">change</button>
-</template>
-
-<script>
-import { ref, reactive, isRef, isReactive } from 'vue';
-export default {
-    name: 'App',
-    setup() {
-        const state = reactive({
-            a: {
-                b: {
-                    c: {
-                        d: 'Hello World',
-                    },
-                },
-            },
-        });
-        return { state };
-    },
-};
-</script>
-```
-
-`ref` 数据演示
-
-```vue
-<template>
-    <p>{{ state.a.b.c.d }}</p>
-    <button @click="handleChange">change</button>
-</template>
-
-<script>
-import { ref } from 'vue';
-export default {
-    name: 'App',
-    setup() {
-        const state = ref({
-            a: {
-                b: {
-                    c: {
-                        d: 'Hello World',
-                    },
-                },
-            },
-        });
-        const handleChange = () => {
-            state.value.a.b.c.d = 'xxx';
-        };
-        return { state, handleChange };
-    },
-};
-</script>
-```
-
-### 10.2、非递归监听
-
-`shallowReactive`
-
-```vue
-<template>
-    <p>{{ state.age }}</p>
-    <p>{{ state.a.b.c.d }}</p>
-    <button @click="handleChange">change</button>
-</template>
-
-<script>
-import { shallowReactive } from 'vue';
-export default {
-    name: 'App',
-    setup() {
-        const state = shallowReactive({
-            age: 18,
-            a: {
-                b: {
-                    c: {
-                        d: 'Hello World',
-                    },
-                },
-            },
-        });
-        const handleChange = () => {
-            // 只有第一层是响应式的，可以通过打印观察到
-            // console.log(state);
-            // 第一层的更新会影响到后面（注意 state.age 也必须写到模板上面）
-            state.age = 19;
-            // 如果没有上面的代码直接下面这样写界面是不会更新的
-            state.a.b.c.d = 'xxx';
-        };
-        return { state, handleChange };
-    },
-};
-</script>
-```
+## 20. 🧐 shallowRef
 
 `shallowRef` 的本质是 `shallowReactive`
 
@@ -1868,7 +1828,9 @@ export default {
 </script>
 ```
 
-## 15. computed
+## 21. 🧐 triggerRef
+
+## 22. computed
 
 ```vue
 <template>
@@ -1928,9 +1890,9 @@ export default {
 </script>
 ```
 
-## 16. watch
+## 23. watch
 
-### 16.1、监听 ref 数据
+### 23.1、监听 ref 数据
 
 ```vue
 <template>
@@ -1956,7 +1918,7 @@ export default {
 </script>
 ```
 
-### 16.2、监听 reactive 数据
+### 23.2、监听 reactive 数据
 
 ```vue
 <template>
@@ -1987,7 +1949,7 @@ export default {
 </script>
 ```
 
-### 16.3、监听对象中某一个属性的变化
+### 23.3、监听对象中某一个属性的变化
 
 复杂数据类型需要进行深度监听
 
@@ -2067,7 +2029,7 @@ export default {
 </script>
 ```
 
-### 16.4、监听多个数据
+### 23.4、监听多个数据
 
 ```vue
 <template>
@@ -2102,7 +2064,7 @@ export default {
 </script>
 ```
 
-## 17. watchEffect
+## 24. watchEffect
 
 1、`watchEffect `不需要手动传入依赖
 
