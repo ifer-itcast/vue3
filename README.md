@@ -1193,7 +1193,7 @@ export default {
             name: 'ifer',
             age: 18
         });
-        // 解构赋值会使 name 失去响应式，【只有从 obj 这个对象出发操作里面的数据才是响应式的】！
+        // 解构赋值简单数据类型的 name 会使其失去响应式
         // let { name } = obj;
         // 类似的操作还有
         let name = obj.name;
@@ -1533,7 +1533,9 @@ export default {
 
 ### 17.1、需求
 
-需求：只想把用到的 username 掏出去，问题：数据不是响应式的了
+需求：只想把用到的简单数据类型 `username` 掏出去
+
+问题：数据不是响应式的了（注意如果掏出去的是复杂数据类型则还是会保留响应式）
 
 ```vue
 <template>
@@ -2111,7 +2113,15 @@ export default {
 </script>
 ```
 
-解决：监听具体的某一个简单数据类型
+解决1：换一种写法
+
+```js
+watch(obj.hobby, (newValue, oldValue) => {
+    console.log(newValue === oldValue);
+});
+```
+
+解决2：监听具体的某一个简单数据类型
 
 ```js
 watch(
@@ -2122,7 +2132,7 @@ watch(
 );
 ```
 
-推荐：深度监听
+解决3：深度监听
 
 ```js
 watch(
@@ -2171,11 +2181,7 @@ export default {
 </script>
 ```
 
-## 24. 请求数据
-
-
-
-## 25. watchEffect
+## 24. watchEffect
 
 1、`watchEffect `不需要手动传入依赖
 
@@ -2310,7 +2316,7 @@ input::-webkit-inner-spin-button {
 
 
 
-## 18. 组件通讯
+## 26. 组件通讯
 
 ### 18.1、父传子
 
@@ -2889,15 +2895,39 @@ createApp(App).mount('#app');
             <h1>todos</h1>
             <input id="toggle-all" class="toggle-all" type="checkbox" />
             <label for="toggle-all"></label>
-            <input class="new-todo" placeholder="输入任务名称-回车确认" autofocus />
+            <input
+                class="new-todo"
+                placeholder="输入任务名称-回车确认"
+                autofocus
+            />
         </header>
         <ul class="todo-list">
+            <!-- 完成状态，li 上有 .completed，input 带 checked 属性 -->
             <li class="completed">
                 <div class="view">
                     <input class="toggle" type="checkbox" checked />
                     <label>xxx</label>
                     <button class="destroy"></button>
                 </div>
+                <input type="text" class="edit" />
+            </li>
+            <!-- 编辑状态，直接在 li 上加 .editing 即可 -->
+            <li class="completed editing">
+                <div class="view">
+                    <input class="toggle" type="checkbox" checked />
+                    <label>xxx</label>
+                    <button class="destroy"></button>
+                </div>
+                <input type="text" class="edit" />
+            </li>
+            <!-- 未完成状态，去掉 li 上的 .completed 和 input 上的 checked 属性 -->
+            <li>
+                <div class="view">
+                    <input class="toggle" type="checkbox" />
+                    <label>xxx</label>
+                    <button class="destroy"></button>
+                </div>
+                <input type="text" class="edit" />
             </li>
         </ul>
         <footer class="footer">
@@ -3528,6 +3558,41 @@ export default {
 </script>
 ```
 
+`components/Header.vue`
+
+```vue
+<template>
+    <header class="header">
+        <h1>todos</h1>
+        <input id="toggle-all" class="toggle-all" type="checkbox" />
+        <label for="toggle-all"></label>
+        <input class="new-todo" placeholder="输入任务名称-回车确认" autofocus />
+    </header>
+</template>
+```
+
+`components/Footer.vue`
+
+```vue
+<template>
+    <footer class="footer">
+        <span class="todo-count">剩余<strong>1</strong></span>
+        <ul class="filters">
+            <li>
+                <a class="selected" href="javascript:;">全部</a>
+            </li>
+            <li>
+                <a href="javascript:;">未完成</a>
+            </li>
+            <li>
+                <a href="javascript:;">已完成</a>
+            </li>
+        </ul>
+        <button class="clear-completed">清除已完成</button>
+    </footer>
+</template>
+```
+
 ### 27.3 添加数据
 
 `App.vue`
@@ -3545,7 +3610,7 @@ export default {
 import Header from './components/Header.vue';
 import Content from './components/Content.vue';
 import Footer from './components/Footer.vue';
-import { reactive } from 'vue';
+import { reactive, toRefs } from 'vue';
 export default {
     name: 'App',
     components: {
@@ -3554,37 +3619,36 @@ export default {
         Footer
     },
     setup() {
-        const list = reactive([
-            {
-                id: 1,
-                name: '吃饭',
-                isDone: true
-            },
-            {
-                id: 2,
-                name: '睡觉',
-                isDone: false
-            },
-            {
-                id: 3,
-                name: '打豆豆',
-                isDone: false
-            }
-        ]);
+        // !#1
+        const state = reactive({
+            list: [
+                {
+                    id: 1,
+                    name: '吃饭',
+                    isDone: true
+                },
+                {
+                    id: 2,
+                    name: '睡觉',
+                    isDone: false
+                },
+                {
+                    id: 3,
+                    name: '打豆豆',
+                    isDone: false
+                }
+            ]
+        });
         // !#4
-        const id = list.length === 0 ? 0 : list.length;
         const add = (name) => {
-            list.push({
-                id,
+            state.list.push({
+                id: state.list.length,
                 name: name,
                 isDone: false
             });
-            // 如果 Header.vue #2 处直接 emit('add', name)
-            // 这里打印的数据和调试工具里面展示的有所差异
-            // console.log(list);
         };
         return {
-            list,
+            ...toRefs(state),
             add
         };
     }
@@ -3602,13 +3666,20 @@ export default {
         <input id="toggle-all" class="toggle-all" type="checkbox" />
         <label for="toggle-all"></label>
         <!-- //! #1 -->
-        <input class="new-todo" placeholder="输入任务名称-回车确认" v-model="name" autofocus @keydown.enter="handleKeyDown" />
+        <input
+            class="new-todo"
+            placeholder="输入任务名称-回车确认"
+            v-model="name"
+            autofocus
+            @keydown.enter="handleKeyDown"
+        />
     </header>
 </template>
 <script>
 import { ref } from 'vue';
 export default {
     name: 'Header',
+    emits: ['add'],
     setup(props, context) {
         const { emit } = context;
         //! #2
@@ -3643,7 +3714,7 @@ export default {
 import Header from './components/Header.vue';
 import Content from './components/Content.vue';
 import Footer from './components/Footer.vue';
-import { reactive } from 'vue';
+import { reactive, toRefs } from 'vue';
 export default {
     name: 'App',
     components: {
@@ -3652,41 +3723,40 @@ export default {
         Footer
     },
     setup() {
-        const list = reactive([
-            {
-                id: 1,
-                name: '吃饭',
-                isDone: true
-            },
-            {
-                id: 2,
-                name: '睡觉',
-                isDone: false
-            },
-            {
-                id: 3,
-                name: '打豆豆',
-                isDone: false
-            }
-        ]);
+        // !#1
+        const state = reactive({
+            list: [
+                {
+                    id: 1,
+                    name: '吃饭',
+                    isDone: true
+                },
+                {
+                    id: 2,
+                    name: '睡觉',
+                    isDone: false
+                },
+                {
+                    id: 3,
+                    name: '打豆豆',
+                    isDone: false
+                }
+            ]
+        });
         // !#4
-        const id = list.length === 0 ? 0 : list.length;
         const add = (name) => {
-            list.push({
-                id,
+            state.list.push({
+                id: state.list.length,
                 name: name,
                 isDone: false
             });
-            // 如果 Header.vue #2 处直接 emit('add', name)
-            // 这里打印的数据和调试工具里面展示的有所差异
-            // console.log(list);
         };
         const del = (id) => {
-            const idx = list.findIndex((item) => item.id === id);
-            if (idx !== -1) list.splice(idx, 1);
+            const idx = state.list.findIndex((item) => item.id === id);
+            if (idx !== -1) state.list.splice(idx, 1);
         };
         return {
-            list,
+            ...toRefs(state),
             add,
             del
         };
@@ -3701,7 +3771,11 @@ export default {
 <template>
     <ul class="todo-list">
         <!-- //! #3 -->
-        <li :class="{ completed: item.isDone }" v-for="item in list" :key="item.id">
+        <li
+            :class="{ completed: item.isDone }"
+            v-for="item in list"
+            :key="item.id"
+        >
             <div class="view">
                 <input class="toggle" type="checkbox" v-model="item.isDone" />
                 <label>{{ item.name }}</label>
@@ -3715,6 +3789,7 @@ export default {
 export default {
     // !#2
     props: ['list'],
+    emits: ['del'],
     setup(props, context) {
         const handleDel = (id) => {
             context.emit('del', id);
@@ -3738,7 +3813,7 @@ export default {
             >剩余<strong>{{ list.length }}</strong></span
         > -->
         <span class="todo-count"
-            >剩余<strong>{{ count }}</strong></span
+            >剩余 <strong>{{ count }}</strong></span
         >
         <ul class="filters">
             <li>
@@ -3784,13 +3859,28 @@ export default {
         >
         <ul class="filters">
             <li>
-                <a @click="isSel = 'all'" :class="{ selected: isSel === 'all' }" href="javascript:;">全部</a>
+                <a
+                    @click="isSel = 'all'"
+                    :class="{ selected: isSel === 'all' }"
+                    href="javascript:;"
+                    >全部</a
+                >
             </li>
             <li>
-                <a @click="isSel = 'no'" :class="{ selected: isSel === 'no' }" href="javascript:;">未完成</a>
+                <a
+                    @click="isSel = 'no'"
+                    :class="{ selected: isSel === 'no' }"
+                    href="javascript:;"
+                    >未完成</a
+                >
             </li>
             <li>
-                <a @click="isSel = 'yes'" :class="{ selected: isSel === 'yes' }" href="javascript:;">已完成</a>
+                <a
+                    @click="isSel = 'yes'"
+                    :class="{ selected: isSel === 'yes' }"
+                    href="javascript:;"
+                    >已完成</a
+                >
             </li>
         </ul>
         <button class="clear-completed">清除已完成</button>
@@ -3830,7 +3920,7 @@ export default {
 import Header from './components/Header.vue';
 import Content from './components/Content.vue';
 import Footer from './components/Footer.vue';
-import { computed, reactive, ref } from 'vue';
+import { reactive, toRefs, computed } from 'vue';
 export default {
     name: 'App',
     components: {
@@ -3839,60 +3929,58 @@ export default {
         Footer
     },
     setup() {
-        const list = reactive([
-            {
-                id: 1,
-                name: '吃饭',
-                isDone: true
-            },
-            {
-                id: 2,
-                name: '睡觉',
-                isDone: false
-            },
-            {
-                id: 3,
-                name: '打豆豆',
-                isDone: false
-            }
-        ]);
+        // !#1
+        const state = reactive({
+            list: [
+                {
+                    id: 1,
+                    name: '吃饭',
+                    isDone: true
+                },
+                {
+                    id: 2,
+                    name: '睡觉',
+                    isDone: false
+                },
+                {
+                    id: 3,
+                    name: '打豆豆',
+                    isDone: false
+                }
+            ],
+            type: 'all'
+        });
         // !#4
-        const id = list.length === 0 ? 0 : list.length;
         const add = (name) => {
-            list.push({
-                id,
+            state.list.push({
+                id: state.list.length,
                 name: name,
                 isDone: false
             });
-            // 如果 Header.vue #2 处直接 emit('add', name)
-            // 这里打印的数据和调试工具里面展示的有所差异
-            // console.log(list);
         };
         const del = (id) => {
-            const idx = list.findIndex((item) => item.id === id);
-            if (idx !== -1) list.splice(idx, 1);
+            const idx = state.list.findIndex((item) => item.id === id);
+            if (idx !== -1) state.list.splice(idx, 1);
         };
 
-        const type = ref('all');
         const changeType = (t) => {
-            type.value = t;
+            state.type = t;
         };
 
         const listRes = computed(() => {
-            if (type.value === 'yes') {
+            if (state.type === 'yes') {
                 // 已完成
-                return list.filter((item) => item.isDone);
+                return state.list.filter((item) => item.isDone);
             }
 
-            if (type.value === 'no') {
+            if (state.type === 'no') {
                 // 未完成
-                return list.filter((item) => !item.isDone);
+                return state.list.filter((item) => !item.isDone);
             }
-            return list;
+            return state.list;
         });
-
         return {
-            list,
+            ...toRefs(state),
             add,
             del,
             changeType,
@@ -3916,13 +4004,28 @@ export default {
         >
         <ul class="filters" @click="changeType">
             <li>
-                <a @click="isSel = 'all'" :class="{ selected: isSel === 'all' }" href="javascript:;">全部</a>
+                <a
+                    @click="isSel = 'all'"
+                    :class="{ selected: isSel === 'all' }"
+                    href="javascript:;"
+                    >全部</a
+                >
             </li>
             <li>
-                <a @click="isSel = 'no'" :class="{ selected: isSel === 'no' }" href="javascript:;">未完成</a>
+                <a
+                    @click="isSel = 'no'"
+                    :class="{ selected: isSel === 'no' }"
+                    href="javascript:;"
+                    >未完成</a
+                >
             </li>
             <li>
-                <a @click="isSel = 'yes'" :class="{ selected: isSel === 'yes' }" href="javascript:;">已完成</a>
+                <a
+                    @click="isSel = 'yes'"
+                    :class="{ selected: isSel === 'yes' }"
+                    href="javascript:;"
+                    >已完成</a
+                >
             </li>
         </ul>
         <button class="clear-completed">清除已完成</button>
@@ -3933,6 +4036,7 @@ import { computed, ref } from 'vue';
 export default {
     name: 'Footer',
     props: ['list'],
+    emits: ['changeType'],
     setup(props, context) {
         const count = computed(() => {
             return props.list.filter((item) => !item.isDone).length;
@@ -3958,7 +4062,11 @@ export default {
     <div class="todoapp">
         <Header @add="add" />
         <Content :list="listRes" @del="del" />
-        <Footer :list="list" @changeType="changeType" @rmFinished="rmFinished" />
+        <Footer
+            :list="list"
+            @changeType="changeType"
+            @rmFinished="rmFinished"
+        />
     </div>
 </template>
 
@@ -3966,7 +4074,7 @@ export default {
 import Header from './components/Header.vue';
 import Content from './components/Content.vue';
 import Footer from './components/Footer.vue';
-import { computed, reactive, ref } from 'vue';
+import { reactive, toRefs, computed } from 'vue';
 export default {
     name: 'App',
     components: {
@@ -3975,69 +4083,67 @@ export default {
         Footer
     },
     setup() {
-        let list = reactive([
-            {
-                id: 1,
-                name: '吃饭',
-                isDone: true
-            },
-            {
-                id: 2,
-                name: '睡觉',
-                isDone: false
-            },
-            {
-                id: 3,
-                name: '打豆豆',
-                isDone: false
-            }
-        ]);
+        // !#1
+        const state = reactive({
+            list: [
+                {
+                    id: 1,
+                    name: '吃饭',
+                    isDone: true
+                },
+                {
+                    id: 2,
+                    name: '睡觉',
+                    isDone: false
+                },
+                {
+                    id: 3,
+                    name: '打豆豆',
+                    isDone: false
+                }
+            ],
+            type: 'all'
+        });
         // !#4
-        const id = list.length === 0 ? 0 : list.length;
         const add = (name) => {
-            list.push({
-                id,
+            state.list.push({
+                id: state.list.length,
                 name: name,
                 isDone: false
             });
-            // 如果 Header.vue #2 处直接 emit('add', name)
-            // 这里打印的数据和调试工具里面展示的有所差异
-            // console.log(list);
         };
         const del = (id) => {
-            const idx = list.findIndex((item) => item.id === id);
-            if (idx !== -1) list.splice(idx, 1);
+            const idx = state.list.findIndex((item) => item.id === id);
+            if (idx !== -1) state.list.splice(idx, 1);
         };
 
-        const type = ref('all');
         const changeType = (t) => {
-            type.value = t;
+            state.type = t;
         };
 
         const listRes = computed(() => {
-            if (type.value === 'yes') {
+            if (state.type === 'yes') {
                 // 已完成
-                return list.filter((item) => item.isDone);
+                return state.list.filter((item) => item.isDone);
             }
 
-            if (type.value === 'no') {
+            if (state.type === 'no') {
                 // 未完成
-                return list.filter((item) => !item.isDone);
+                return state.list.filter((item) => !item.isDone);
             }
-            return list;
+            return state.list;
         });
 
         const rmFinished = () => {
-            for (let i = 0; i < list.length; i++) {
-                if (list[i].isDone === true) {
-                    list.splice(i, 1);
+            for (let i = 0; i < state.list.length; i++) {
+                if (state.list[i].isDone === true) {
+                    state.list.splice(i, 1);
                     i--;
                 }
             }
         };
-
         return {
-            list,
+            ...toRefs(state),
             add,
             del,
             changeType,
@@ -4062,13 +4168,28 @@ export default {
         >
         <ul class="filters" @click="changeType">
             <li>
-                <a @click="isSel = 'all'" :class="{ selected: isSel === 'all' }" href="javascript:;">全部</a>
+                <a
+                    @click="isSel = 'all'"
+                    :class="{ selected: isSel === 'all' }"
+                    href="javascript:;"
+                    >全部</a
+                >
             </li>
             <li>
-                <a @click="isSel = 'no'" :class="{ selected: isSel === 'no' }" href="javascript:;">未完成</a>
+                <a
+                    @click="isSel = 'no'"
+                    :class="{ selected: isSel === 'no' }"
+                    href="javascript:;"
+                    >未完成</a
+                >
             </li>
             <li>
-                <a @click="isSel = 'yes'" :class="{ selected: isSel === 'yes' }" href="javascript:;">已完成</a>
+                <a
+                    @click="isSel = 'yes'"
+                    :class="{ selected: isSel === 'yes' }"
+                    href="javascript:;"
+                    >已完成</a
+                >
             </li>
         </ul>
         <button class="clear-completed" @click="rmFinished">清除已完成</button>
@@ -4079,6 +4200,7 @@ import { computed, ref } from 'vue';
 export default {
     name: 'Footer',
     props: ['list'],
+    emits: ['changeType', 'rmFinished'],
     setup(props, context) {
         const count = computed(() => {
             return props.list.filter((item) => !item.isDone).length;
@@ -4108,7 +4230,11 @@ export default {
     <div class="todoapp">
         <Header @add="add" />
         <Content :list="listRes" @del="del" />
-        <Footer :list="list" @changeType="changeType" @rmFinished="rmFinished" />
+        <Footer
+            :list="list"
+            @changeType="changeType"
+            @rmFinished="rmFinished"
+        />
     </div>
 </template>
 
@@ -4116,7 +4242,7 @@ export default {
 import Header from './components/Header.vue';
 import Content from './components/Content.vue';
 import Footer from './components/Footer.vue';
-import { computed, reactive, ref, watch } from 'vue';
+import { reactive, toRefs, computed, watch } from 'vue';
 export default {
     name: 'App',
     components: {
@@ -4125,57 +4251,55 @@ export default {
         Footer
     },
     setup() {
-        let list = reactive(JSON.parse(localStorage.getItem('TODO')));
+        // !#1
+        const state = reactive({
+            list: JSON.parse(localStorage.getItem('TODO')) || [],
+            type: 'all'
+        });
         // !#4
-        const id = list.length === 0 ? 0 : list.length;
         const add = (name) => {
-            list.push({
-                id,
+            state.list.push({
+                id: state.list.length,
                 name: name,
                 isDone: false
             });
-            // 如果 Header.vue #2 处直接 emit('add', name)
-            // 这里打印的数据和调试工具里面展示的有所差异
-            // console.log(list);
         };
         const del = (id) => {
-            const idx = list.findIndex((item) => item.id === id);
-            if (idx !== -1) list.splice(idx, 1);
+            const idx = state.list.findIndex((item) => item.id === id);
+            if (idx !== -1) state.list.splice(idx, 1);
         };
 
-        const type = ref('all');
         const changeType = (t) => {
-            type.value = t;
+            state.type = t;
         };
 
         const listRes = computed(() => {
-            if (type.value === 'yes') {
+            if (state.type === 'yes') {
                 // 已完成
-                return list.filter((item) => item.isDone);
+                return state.list.filter((item) => item.isDone);
             }
 
-            if (type.value === 'no') {
+            if (state.type === 'no') {
                 // 未完成
-                return list.filter((item) => !item.isDone);
+                return state.list.filter((item) => !item.isDone);
             }
-            return list;
+            return state.list;
         });
 
         const rmFinished = () => {
-            for (let i = 0; i < list.length; i++) {
-                if (list[i].isDone === true) {
-                    list.splice(i, 1);
+            for (let i = 0; i < state.list.length; i++) {
+                if (state.list[i].isDone === true) {
+                    state.list.splice(i, 1);
                     i--;
                 }
             }
         };
-
-        watch(list, (newList) => {
+        // 不要 watch(() => state.list, (newList) => {})
+        watch(state.list, (newList) => {
             localStorage.setItem('TODO', JSON.stringify(newList));
         });
-
         return {
-            list,
+            ...toRefs(state),
             add,
             del,
             changeType,
@@ -4192,87 +4316,7 @@ export default {
 `App.vue`
 
 ```vue
-<template>
-    <div class="todoapp">
-        <Header @add="add" :list="list" />
-        <Content :list="listRes" @del="del" />
-        <Footer :list="list" @changeType="changeType" @rmFinished="rmFinished" />
-    </div>
-</template>
-
-<script>
-import Header from './components/Header.vue';
-import Content from './components/Content.vue';
-import Footer from './components/Footer.vue';
-import { computed, reactive, ref, watch } from 'vue';
-export default {
-    name: 'App',
-    components: {
-        Header,
-        Content,
-        Footer
-    },
-    setup() {
-        let list = reactive(JSON.parse(localStorage.getItem('TODO')));
-        // !#4
-        const id = list.length === 0 ? 0 : list.length;
-        const add = (name) => {
-            list.push({
-                id,
-                name: name,
-                isDone: false
-            });
-            // 如果 Header.vue #2 处直接 emit('add', name)
-            // 这里打印的数据和调试工具里面展示的有所差异
-            // console.log(list);
-        };
-        const del = (id) => {
-            const idx = list.findIndex((item) => item.id === id);
-            if (idx !== -1) list.splice(idx, 1);
-        };
-
-        const type = ref('all');
-        const changeType = (t) => {
-            type.value = t;
-        };
-
-        const listRes = computed(() => {
-            if (type.value === 'yes') {
-                // 已完成
-                return list.filter((item) => item.isDone);
-            }
-
-            if (type.value === 'no') {
-                // 未完成
-                return list.filter((item) => !item.isDone);
-            }
-            return list;
-        });
-
-        const rmFinished = () => {
-            for (let i = 0; i < list.length; i++) {
-                if (list[i].isDone === true) {
-                    list.splice(i, 1);
-                    i--;
-                }
-            }
-        };
-
-        watch(list, (newList) => {
-            localStorage.setItem('TODO', JSON.stringify(newList));
-        });
-
-        return {
-            list,
-            add,
-            del,
-            changeType,
-            listRes,
-            rmFinished
-        };
-    }
-};
-</script>
+<Header @add="add" :list="list" />
 ```
 
 `components/Header.vue`
@@ -4282,16 +4326,28 @@ export default {
     <header class="header">
         <h1>todos</h1>
         <!-- //! #3 -->
-        <input id="toggle-all" class="toggle-all" type="checkbox" v-model="isAll" />
+        <input
+            id="toggle-all"
+            class="toggle-all"
+            type="checkbox"
+            v-model="isAll"
+        />
         <label for="toggle-all"></label>
         <!-- //! #1 -->
-        <input class="new-todo" placeholder="输入任务名称-回车确认" v-model="name" autofocus @keydown.enter="handleKeyDown" />
+        <input
+            class="new-todo"
+            placeholder="输入任务名称-回车确认"
+            v-model="name"
+            autofocus
+            @keydown.enter="handleKeyDown"
+        />
     </header>
 </template>
 <script>
-import { computed, ref } from 'vue';
+import { ref, computed } from 'vue';
 export default {
     name: 'Header',
+    emits: ['add'],
     props: ['list'],
     setup(props, context) {
         const { emit } = context;
@@ -4305,8 +4361,10 @@ export default {
             get() {
                 // 小影响全选
                 // 如果没有数据，直接返回 false，不要让全选处于勾选状态
-
-                return props.list.length !== 0 && props.list.every((item) => item.isDone === true);
+                return (
+                    props.list.length !== 0 &&
+                    props.list.every((item) => item.isDone === true)
+                );
             },
             set(checked) {
                 // 全选影响小
@@ -4327,117 +4385,7 @@ export default {
 
 ### 27.11 优化代码
 
-`App.vue`
-
-```vue
-<template>
-  <div class="todoapp">
-    <Header @add="add" :list="list" />
-    <Content :list="listRes" @del="del" />
-    <Footer :list="list" @changeType="changeType" @rmFinished="rmFinished" />
-  </div>
-</template>
-
-<script>
-import Header from './components/Header.vue';
-import Content from './components/Content.vue';
-import Footer from './components/Footer.vue';
-import { computed, reactive, ref, watch } from 'vue';
-
-const useAdd = () => {
-  let list = reactive(JSON.parse(localStorage.getItem('TODO')));
-  watch(list, (newList) => {
-    localStorage.setItem('TODO', JSON.stringify(newList));
-  });
-  // !#4
-  const id = list.length === 0 ? 0 : list.length;
-  const add = (name) => {
-    list.push({
-      id,
-      name: name,
-      isDone: false
-    });
-    // 如果 Header.vue #2 处直接 emit('add', name)
-    // 这里打印的数据和调试工具里面展示的有所差异
-    // console.log(list);
-  };
-  return {
-    list,
-    id,
-    add
-  };
-};
-const useDel = (list, id) => {
-  const del = (id) => {
-    const idx = list.findIndex((item) => item.id === id);
-    if (idx !== -1) list.splice(idx, 1);
-  };
-  return { del };
-};
-const useFilterResults = (list) => {
-  const type = ref('all');
-  const changeType = (t) => {
-    type.value = t;
-  };
-
-  const listRes = computed(() => {
-    if (type.value === 'yes') {
-      // 已完成
-      return list.filter((item) => item.isDone);
-    }
-
-    if (type.value === 'no') {
-      // 未完成
-      return list.filter((item) => !item.isDone);
-    }
-    return list;
-  });
-  return {
-    changeType,
-    listRes
-  };
-};
-const useRmFinished = (list) => {
-  const rmFinished = () => {
-    for (let i = 0; i < list.length; i++) {
-      if (list[i].isDone === true) {
-        list.splice(i, 1);
-        i--;
-      }
-    }
-  };
-  return {
-    rmFinished
-  };
-};
-
-export default {
-  name: 'App',
-  components: {
-    Header,
-    Content,
-    Footer
-  },
-  setup() {
-    // !增
-    const { list, id, add } = useAdd();
-    const { del } = useDel(list, id);
-    const { changeType, listRes } = useFilterResults(list);
-    const { rmFinished } = useRmFinished(list);
-    return {
-      list,
-      add,
-      del,
-      changeType,
-      listRes,
-      rmFinished
-    };
-  }
-};
-</script>
-```
-
-自动聚焦的指令
+TODO：增加需求、例如编辑指令自动聚焦的指令，优化代码
 
 ## 28. Vue3 其他变更
 
