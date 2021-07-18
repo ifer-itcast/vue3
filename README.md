@@ -1241,11 +1241,11 @@ export default {
 
 ## 15. toRef
 
-### 15.1、转换原始对象中的属性
+### 15.1、转换原始对象中的属性❗
 
 [官方文档](https://v3.cn.vuejs.org/api/refs-api.html#toref)
 
-toRef(普通对象)，影响原，**非响应**
+toRef(普通对象)，影响原，==非响应==
 
 ![image-20210717195522209](README.assets/image-20210717195522209.png)
 
@@ -1331,7 +1331,7 @@ export default {
 
 [参考文档](https://v3.cn.vuejs.org/guide/reactivity-fundamentals.html#%E5%93%8D%E5%BA%94%E5%BC%8F%E7%8A%B6%E6%80%81%E8%A7%A3%E6%9E%84)
 
-`toRefs` 是函数，一般用来转换响应式对象中所有属性为单独响应式数据，并且转换后的值和原对象是关联的
+`toRefs` 是函数，用来转换**响应式对象**中的所有属性为单独响应式数据，并且转换后的值和原对象是关联的
 
 ```vue
 <template>
@@ -1352,7 +1352,7 @@ export default {
         const obj = toRefs(userInfo);
 
         const updateUserInfo = () => {
-            // toRefs 转换的数据最后要加 .value，reactive 类型的数据则不用
+            // 使用 toRefs 转换的数据最后要加 .value
             // obj.username.value = 'xxx';
             userInfo.username = 'xxx';
         };
@@ -1367,6 +1367,8 @@ export default {
 ```
 
 ### 16.2 举个例子
+
+1、之前讲的获取鼠标坐标的案例
 
 ```vue
 <template>
@@ -1396,15 +1398,6 @@ export default {
     name: 'App',
     setup() {
         const mouse = useMouse();
-        // !错误写法
-        /* return {
-            x: mouse.x,
-            y: mouse.y
-        }; */
-        // return mouse;
-        /* return {
-            ...toRefs(mouse)
-        }; */
         return {
             mouse
         };
@@ -1413,7 +1406,130 @@ export default {
 </script>
 ```
 
-## 17. 📌 易错点
+2、需求：想直接在模板中使用 x 和 y，而不是 `mouse.x` 和 `mouse.y`，下面是错误写法！
+
+```vue
+<template>
+    <div>x: {{ x }} y: {{ y }}</div>
+</template>
+
+<script>
+import { onMounted, onUnmounted, reactive, toRefs } from 'vue';
+const useMouse = () => {
+    const mouse = reactive({
+        x: 0,
+        y: 0
+    });
+    const move = (e) => {
+        mouse.x = e.pageX;
+        mouse.y = e.pageY;
+    };
+    onMounted(() => {
+        document.addEventListener('mousemove', move);
+    });
+    onUnmounted(() => {
+        document.removeEventListener('mousemove', move);
+    });
+    return mouse;
+};
+export default {
+    name: 'App',
+    setup() {
+        const mouse = useMouse();
+        // !错误写法
+        return {
+            x: mouse.x,
+            y: mouse.y
+        };
+    }
+};
+</script>
+```
+
+3、最佳实践
+
+快速生成代码片段：安装插件 `Vue VSCode Snippets`，输入 `vbase-3-reactive`
+
+```vue
+<template>
+    <div>x: {{ x }} y: {{ y }}</div>
+</template>
+
+<script>
+import { onMounted, onUnmounted, reactive, toRef, toRefs } from 'vue';
+const useMouse = () => {
+    const mouse = reactive({
+        x: 0,
+        y: 0
+    });
+    const move = (e) => {
+        mouse.x = e.pageX;
+        mouse.y = e.pageY;
+    };
+    onMounted(() => {
+        document.addEventListener('mousemove', move);
+    });
+    onUnmounted(() => {
+        document.removeEventListener('mousemove', move);
+    });
+    return mouse;
+};
+export default {
+    name: 'App',
+    setup() {
+        const mouse = useMouse();
+        // 不推荐，因为当有其他数据需要导出时这种写法就不行了
+        // return mouse;
+        return {
+            ...toRefs(mouse)
+        };
+    }
+};
+</script>
+```
+
+4、当然也可以再封装 `useMouse` 函数的时候，返回的是单值 ref 数据，而不是 reactive 数据
+
+```vue
+<template>
+    <div>x: {{ x }} y: {{ y }}</div>
+</template>
+
+<script>
+import { onMounted, onUnmounted, reactive, toRef, toRefs } from 'vue';
+const useMouse = () => {
+    const mouse = reactive({
+        x: 0,
+        y: 0
+    });
+    const move = (e) => {
+        mouse.x = e.pageX;
+        mouse.y = e.pageY;
+    };
+    onMounted(() => {
+        document.addEventListener('mousemove', move);
+    });
+    onUnmounted(() => {
+        document.removeEventListener('mousemove', move);
+    });
+    return {
+        ...toRefs(mouse)
+    };
+};
+export default {
+    name: 'App',
+    setup() {
+        const { x, y } = useMouse();
+        return {
+            x,
+            y
+        };
+    }
+};
+</script>
+```
+
+## 17. 📌 易错点复习
 
 ### 17.1、需求
 
@@ -1432,18 +1548,19 @@ export default {
     setup() {
         const userInfo = reactive({
             name: 'ifer',
-            age: 18,
+            age: 18
         });
         const updateName = () => {
             userInfo.name = 'xxx';
         };
         return {
-            // 相当于把 userInfo.name 复制了一份给了一个新的变量 name，那么对原 userInfo 中 name 的修改
-            // 根本不会影响视图中的 name，因为不是一个东西
+            // 相当于把 userInfo.name 复制了一份给了一个新的变量 name
+            // 那么对原 userInfo 中 name 的修改根本不会影响视图中的 name，因为不是一个东西
+            // userInfo.name 本身也就是一个普通的字符串
             name: userInfo.name,
-            updateName,
+            updateName
         };
-    },
+    }
 };
 </script>
 ```
@@ -1486,6 +1603,8 @@ export default {
 
 ### 17.2、ref 解决
 
+`const username = ref(userInfo.username);`
+
 ```vue
 <template>
     <p>{{ username }}</p>
@@ -1522,6 +1641,8 @@ export default {
 ### 17.3、toRef 解决
 
 解决：toRef 是函数，可以转换**响应式对象**中某个属性为单独响应式数据，并且转换后的值和原对象是是关联的
+
+`const username = toRef(userInfo, 'username');`
 
 ```vue
 <template>
@@ -1608,9 +1729,68 @@ export default {
 </script>
 ```
 
+修改数据时，使用 `unRef` 来替代 `.value`
+
+```vue
+<template>
+    <p>{{ state.name }}</p>
+    <button @click="update">click</button>
+</template>
+<script>
+import { unref, ref } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const origin = {
+            name: 'ifer'
+        };
+        const state = ref(origin);
+
+        console.log(unref(state) === state.value); // true
+
+        const update = () => {
+            // state.value.name = 'xxx';
+            unref(state).name = 'xxx';
+        };
+
+        return {
+            state,
+            update
+        };
+    }
+};
+</script>
+```
+
 ## 19. 🧐 customRef
 
 ### 19.1、基本语法
+
+点击加 1 的案例
+
+```vue
+<template>
+    <p>{{ age }}</p>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { ref } from 'vue';
+
+export default {
+    name: 'App',
+    setup() {
+        let age = ref(18);
+        const handleClick = () => {
+            age.value += 1;
+        };
+        return { age, handleClick };
+    }
+};
+</script>
+```
+
+使用 `customRef` 实现上面的效果
 
 ```vue
 <template>
@@ -1625,7 +1805,7 @@ function myRef(value) {
     return customRef((track, trigger) => {
         return {
             get() {
-                // !#1 追踪变化这个数据的变化
+                // !#1 追踪数据
                 track();
                 console.log('get', value);
                 return value;
@@ -1633,9 +1813,9 @@ function myRef(value) {
             set(newValue) {
                 console.log('set', newValue);
                 value = newValue;
-                // !#2 触发界面更新
+                // !#2 更新视图
                 trigger();
-            },
+            }
         };
     });
 }
@@ -1643,110 +1823,55 @@ function myRef(value) {
 export default {
     name: 'App',
     setup() {
-        // let age = ref(18); // reactive({value: 18})
         let age = myRef(18);
         const handleClick = () => {
-            // age.value => get
-            // age.value = age.value + 1 => set
-            // 视图中使用 {{ age }} => get
             age.value += 1;
         };
         return { age, handleClick };
-    },
+    }
 };
 </script>
 ```
 
-### 19.2、请求数据
+### 19.2、输入内容防抖
 
 ```vue
 <template>
-    <ul>
-        <li v-for="item in arr" :key="item.id">{{ item.name }}</li>
-    </ul>
-</template>
-
-<script>
-import { ref } from 'vue';
-export default {
-    name: 'App',
-    setup() {
-        const arr = ref([]);
-        fetch('/data.json')
-            .then((r) => r.json())
-            .then((data) => {
-                arr.value = data;
-            })
-            .catch((err) => {
-                console.log(err);
-            });
-        return {
-            arr,
-        };
-    },
-};
-</script>
-```
-
-### 19.3、封装接口
-
-```vue
-<template>
-    <ul>
-        <li v-for="item in list" :key="item.id">{{ item.name }}</li>
-    </ul>
-    <button @click="getList">getList</button>
+    <input v-model="text" />
 </template>
 
 <script>
 import { customRef } from 'vue';
 
-const fetchRef = (value) =>
-    customRef((track, trigger) => {
-        let result;
-        const getList = () => {
-            fetch(value)
-                .then((r) => r.json())
-                .then((data) => {
-                    result = data;
-                    // !#2 更新视图
-                    trigger();
-                })
-                .catch((err) => console.log(err));
-        };
-        // !#0 先调用一次
-        getList();
-
-        return {
-            get() {
-                // 模板中使用了 list，第 1 次触发这儿
-                // #2 中进行了 trigger 触发视图更新，第 2 次触发这儿
-                console.log(result);
-                // !#1 追踪数据变化
-                track();
-                return result;
-            },
-            set(newValue) {
+const useDebouncedRef = (value, delay = 200) => {
+    let timer = null;
+    return customRef((track, trigger) => ({
+        get() {
+            track();
+            console.log(1);
+            return value;
+        },
+        set(newValue) {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
                 value = newValue;
-                getList();
-            },
-        };
-    });
+                // 正常情况下，频繁输入内容，会频繁设置新值给 value，频繁触发这里的 trigger 通知视图更新
+                // 其实频率不需要这么高，提升性能
+                // 你可能疑惑：快速输入内容并没有触发这里的 trigger，为什么 input 框中的内容也变化了
+                // 答案是：那时候你看到的内容是 HTML input 标签所具有的特性，“可以输入内容”，但其实这个内容并不是 Vue 数据驱动的结果
+                trigger();
+            }, delay);
+        }
+    }));
+};
 
 export default {
     name: 'App',
     setup() {
-        const list = fetchRef('/data.json');
-
-        function getList() {
-            list.value = '/data2.json';
-        }
-
         return {
-            list,
-            getList,
+            text: useDebouncedRef('Hello')
         };
-    },
+    }
 };
 </script>
 ```
@@ -1776,7 +1901,7 @@ export default {
             },
         });
         const handleChange = () => {
-            // 监听的是 state.value 的变化，因为本质上 shalloReactive 中的 value 才是第一层
+            // 注意 state.value 才是第一层，类似于 shalloReactive({value: a: { b: { c: 'xxx' } }})
             state.value = {
                 a: {
                     b: {
@@ -1794,7 +1919,7 @@ export default {
 </script>
 ```
 
-`triggerRef`
+## 21. 🧐 triggerRef
 
 ```vue
 <template>
@@ -1828,9 +1953,9 @@ export default {
 </script>
 ```
 
-## 21. 🧐 triggerRef
-
 ## 22. computed
+
+基础用法：接收一个函数
 
 ```vue
 <template>
@@ -1839,7 +1964,7 @@ export default {
 </template>
 
 <script>
-import { computed, ref } from 'vue';
+import { computed, isRef, ref } from 'vue';
 export default {
     name: 'App',
     setup() {
@@ -1847,13 +1972,15 @@ export default {
         const str = computed(() => {
             return `xxx 明年 ${age.value + 1} 岁了`;
         });
+        // 注意 computed 的返回值是一个 ref 类型的数据
+        console.log(isRef(str)); // true
         return { age, str };
-    },
+    }
 };
 </script>
 ```
 
-高级用法
+高级用法：接收一个对象
 
 ```vue
 <template>
@@ -1868,11 +1995,10 @@ export default {
     name: 'App',
     setup() {
         const age = ref(18);
-        // 指定一个函数
+        // 指定一个函数：是不能给计算属性 str 直接赋值的
         /* const str = computed(() => {
             return `xxx 今年 ${age.value} 岁了`;
         }); */
-
         // 指定一个对象
         const str = computed({
             get() {
@@ -1882,10 +2008,10 @@ export default {
             set(value) {
                 age.value = value;
                 console.log(`给 str 设置值的时候会触发这里`);
-            },
+            }
         });
         return { age, str };
-    },
+    }
 };
 </script>
 ```
@@ -1918,7 +2044,7 @@ export default {
 </script>
 ```
 
-### 23.2、监听 reactive 数据
+### 23.2、监听整个 reactive 数据
 
 ```vue
 <template>
@@ -1949,7 +2075,7 @@ export default {
 </script>
 ```
 
-### 23.3、监听对象中某一个属性的变化
+### 23.3、监听响应式对象中某一个属性的变化
 
 复杂数据类型需要进行深度监听
 
@@ -1972,21 +2098,10 @@ export default {
         });
 
         // 问题：不会触发后面的回调
-        /* watch(
-            () => obj.hobby,
-            (newValue, oldValue) => {
-                console.log(newValue === oldValue);
-            }
-        ); */
-
-        // 通过配置项 deep 解决
         watch(
             () => obj.hobby,
             (newValue, oldValue) => {
                 console.log(newValue === oldValue);
-            },
-            {
-                deep: true,
             }
         );
 
@@ -1996,37 +2111,29 @@ export default {
 </script>
 ```
 
-简单数据类型
+解决：监听具体的某一个简单数据类型
 
-```vue
-<template>
-    <p>{{ obj.name }}</p>
-    <button @click="obj.name = 'xxx'">click</button>
-</template>
+```js
+watch(
+    () => obj.hobby.eat,
+    (newValue, oldValue) => {
+        console.log(newValue, oldValue);
+    }
+);
+```
 
-<script>
-import { watch, reactive } from 'vue';
-export default {
-    name: 'App',
-    setup() {
-        const obj = reactive({
-            name: 'ifer',
-            hobby: {
-                eat: '西瓜',
-            },
-        });
+推荐：深度监听
 
-        watch(
-            () => obj.name,
-            (newValue, oldValue) => {
-                console.log(newValue, oldValue);
-            }
-        );
-
-        return { obj };
+```js
+watch(
+    () => obj.hobby,
+    (newValue, oldValue) => {
+        console.log(newValue === oldValue);
     },
-};
-</script>
+    {
+        deep: true
+    }
+);
 ```
 
 ### 23.4、监听多个数据
@@ -2053,8 +2160,8 @@ export default {
         });
 
         watch([count, obj], (newValue, oldValue) => {
-            // newValue => [newCount, newObj]Array
-            // oldValue => [oldCount, oldObj]Array
+            // newValue => [newCount, newObj]
+            // oldValue => [oldCount, oldObj]
             console.log(newValue, oldValue);
         });
 
@@ -2064,7 +2171,11 @@ export default {
 </script>
 ```
 
-## 24. watchEffect
+## 24. 请求数据
+
+
+
+## 25. watchEffect
 
 1、`watchEffect `不需要手动传入依赖
 
@@ -2094,6 +2205,110 @@ export default {
 };
 </script>
 ```
+
+## 25. 📌 再说留言板
+
+![image-20210707193637100](README.assets/image-20210707193637100.png)
+
+### 25.1、Vue2
+
+```vue
+<template>
+    <div>
+        <form @submit.prevent="handleSubmit">
+            <input type="number" v-model="user.id" />
+            <input type="text" v-model="user.name" />
+            <input
+                type="submit"
+                :disabled="disabled"
+                :value="disabled ? 'ID已存在' : '提交'"
+            />
+        </form>
+        <div v-if="loading">loading...</div>
+        <div v-else>
+            <ul>
+                <li
+                    v-for="(item, index) in arr"
+                    :key="item.id"
+                    @click="handleClick(index)"
+                >
+                    {{ item.name }}
+                </li>
+            </ul>
+            <div>total: {{ total }}</div>
+        </div>
+    </div>
+</template>
+
+<script>
+export default {
+    name: 'App',
+    data() {
+        return {
+            // !#1
+            user: {
+                id: '',
+                name: ''
+            },
+            disabled: false,
+            arr: [],
+            loading: false
+        };
+    },
+    methods: {
+        // !#2
+        handleClick(index) {
+            this.arr.splice(index, 1);
+        },
+        handleSubmit() {
+            if (!this.user.id || !this.user.name)
+                return alert('id 或 name 不能为空');
+            // 第一个写空对象的目的：为了防止有多个拷贝的数据会影响到第一个，例如 Object.assign(a, b)，b 就会影响到 a
+            const user = Object.assign({}, this.user);
+            this.arr.push(user);
+            // 当然这样操作不会影响，因为重新改变了指向
+            // this.user = {};
+            this.user.id = '';
+            this.user.name = '';
+        },
+        async getList() {
+            this.loading = true;
+            await this.sleep(2000); // 睡眠
+            const r = await fetch('/data.json');
+            this.arr = await r.json();
+            this.loading = false;
+        },
+        sleep(time) {
+            return new Promise((resolve) => setTimeout(resolve, time));
+        }
+    },
+    computed: {
+        // !#3
+        total() {
+            return this.arr.length;
+        }
+    },
+    watch: {
+        // !#4
+        'user.id': function (id) {
+            this.disabled = !!this.arr.find((item) => item.id === +id);
+        }
+    },
+    created() {
+        this.getList();
+    }
+};
+</script>
+<style>
+input::-webkit-inner-spin-button {
+    appearance: none !important;
+}
+</style>
+```
+
+### 25.2、Vue3
+
+
 
 ## 18. 组件通讯
 
@@ -2645,96 +2860,7 @@ export default {
 
 
 
-## 25. 📌 留言板
 
-![image-20210707193637100](3.assets/image-20210707193637100.png)
-
-### 25.1、Vue2
-
-```vue
-<template>
-    <div>
-        <form @submit.prevent="handleSubmit">
-            <input type="number" v-model="user.id" />
-            <input type="text" v-model="user.name" />
-            <input type="submit" :disabled="disabled" :value="disabled ? 'ID已存在' : '提交'" />
-        </form>
-        <div v-if="loading">loading...</div>
-        <div v-else>
-            <ul>
-                <li v-for="(item, index) in arr" :key="item.id" @click="handleClick(index)">{{ item.name }}</li>
-            </ul>
-            <div>total: {{ total }}</div>
-        </div>
-    </div>
-</template>
-
-<script>
-export default {
-    name: 'App',
-    data() {
-        return {
-            // !#1
-            user: {
-                id: '',
-                name: '',
-            },
-            disabled: false,
-            arr: [],
-            loading: false,
-        };
-    },
-    methods: {
-        // !#2
-        handleClick(index) {
-            this.arr.splice(index, 1);
-        },
-        handleSubmit() {
-            if (!this.user.id || !this.user.name) return alert('id 或 name 不能为空');
-            // 第一个写空对象的目的：为了防止有多个拷贝的数据会影响到第一个，例如 Object.assign(a, b)，b 就会影响到 a
-            const user = Object.assign({}, this.user);
-            this.arr.push(user);
-            // 当然这样操作不会影响，因为重新改变了指向
-            // this.user = {};
-            this.user.id = '';
-            this.user.name = '';
-        },
-        async getList() {
-            this.loading = true;
-            await this.sleep(2000); // 睡眠
-            const r = await fetch('/data.json');
-            this.arr = await r.json();
-            this.loading = false;
-        },
-        sleep(time) {
-            return new Promise((resolve) => setTimeout(resolve, time));
-        },
-    },
-    computed: {
-        // !#3
-        total() {
-            return this.arr.length;
-        },
-    },
-    watch: {
-        // !#4
-        'user.id': function (id) {
-            this.disabled = !!this.arr.find((item) => item.id === +id);
-        },
-    },
-    created() {
-        this.getList();
-    },
-};
-</script>
-<style>
-input::-webkit-inner-spin-button {
-    appearance: none !important;
-}
-</style>
-```
-
-### 25.2、Vue3
 
 
 
@@ -4883,3 +5009,342 @@ oInput.oninput = function (e) {
     proxyObj.data.xxx = e.target.value;
 };
 ```
+
+## 21. Vue.extend
+
+### 21. 1 基本操作
+
+`App.vue`
+
+```vue
+<template>
+    <div id="app">
+        <toast :show="show" />
+        <button @click="show = !show">弹框</button>
+    </div>
+</template>
+
+<script>
+import Toast from './components/Toast.vue';
+export default {
+    name: 'App',
+    components: {
+        Toast
+    },
+    data() {
+        return {
+            show: false
+        };
+    }
+};
+</script>
+```
+
+`Toast.vue`
+
+```vue
+<template>
+    <div class="container" v-if="show">
+        <div>{{ text }}</div>
+    </div>
+</template>
+<script>
+export default {
+    name: 'Toast',
+    props: {
+        show: {
+            type: Boolean,
+            default: false
+        },
+        text: {
+            type: String,
+            default: '弹框~~'
+        }
+    }
+};
+</script>
+<style scoped>
+.container {
+    position: fixed;
+    top: calc(50% - 20px);
+    left: calc(50% - 50px);
+    width: 100px;
+    height: 40px;
+    text-align: center;
+    line-height: 40px;
+    color: #fff;
+    background-color: rgba(0, 0, 0, 0.8);
+    border-radius: 10px;
+    box-sizing: border-box;
+}
+</style>
+```
+
+### 21.2 动态创建
+
+[Vue.extend](https://cn.vuejs.org/v2/api/#Vue-extend)
+
+`main.js`
+
+```js
+import Vue from 'vue';
+import App from './App.vue';
+
+import toastRegistry from './components/toast';
+Vue.use(toastRegistry);
+
+Vue.config.productionTip = false;
+
+new Vue({
+    render: (h) => h(App)
+}).$mount('#app');
+```
+
+`App.vue`
+
+```vue
+<template>
+    <div id="app">
+        <button @click="$toast('Hello')">弹框</button>
+    </div>
+</template>
+
+<script>
+export default {
+    name: 'App'
+};
+</script>
+```
+
+`components/Toast.vue`
+
+```vue
+<template>
+    <div class="container" v-if="show">
+        <div>{{ text }}</div>
+    </div>
+</template>
+<script>
+export default {
+    name: 'Toast'
+};
+</script>
+<style scoped>
+.container {
+    position: fixed;
+    top: calc(50% - 20px);
+    left: calc(50% - 50px);
+    width: 100px;
+    height: 40px;
+    text-align: center;
+    line-height: 40px;
+    color: #fff;
+    background-color: rgba(0, 0, 0, 0.8);
+    border-radius: 10px;
+    box-sizing: border-box;
+}
+</style>
+```
+
+`components/toast.js`
+
+```js
+import Vue from 'vue';
+import Toast from './Toast.vue';
+// ToastConstructor 是 Toast 组件的构造函数
+const ToastConstructor = Vue.extend(Toast);
+function showToast(text, duration = 2000) {
+    // toastDOM 是 Toast 组件的实例
+    const toastDOM = new ToastConstructor({
+        el: document.createElement('div'), // 例如写 '#app' 则会把 #app 替换成此组件；创建一个 div，此 div 则会被组件替换
+        data() {
+            return {
+                text: text,
+                show: true
+            };
+        }
+    });
+    document.body.appendChild(toastDOM.$el);
+    setTimeout(() => {
+        toastDOM.show = false;
+    }, duration);
+}
+
+function toastRegistry() {
+    Vue.prototype.$toast = showToast;
+}
+export default toastRegistry;
+```
+
+### 21.3 官网案例
+
+`main.js`
+
+```js
+import Vue from 'vue';
+import Test from './Test.vue';
+const Profile = Vue.extend(Test);
+new Profile({
+    propsData: {
+        propTitle: 'World'
+    },
+    data() {
+        return {
+            localTitle: 'Hello'
+        };
+    }
+}).$mount('#app');
+```
+
+或者
+
+```js
+import Vue from 'vue';
+import Test from './Test.vue';
+const Profile = Vue.extend(Test);
+const p = new Profile({
+    el: document.createElement('div'),
+    propsData: {
+        propTitle: 'World'
+    },
+    data() {
+        return {
+            localTitle: 'Hello'
+        };
+    }
+});
+document.body.appendChild(p.$el);
+```
+
+`test.vue`
+
+```vue
+<template>
+    <p>{{ localTitle }}-{{ propTitle }}</p>
+</template>
+
+<script>
+export default {
+    name: 'Test',
+    props: ['propTitle']
+};
+</script>
+```
+
+## 23. 解释
+
+### 23.1 创建一个组件
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+<body>
+    <div id="app">
+        <hello-world />
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script>
+        Vue.component('HelloWorld', {
+            template: `<h1>{{msg}}</h1>`,
+            data() {
+                return {
+                    msg: 'Hello World'
+                }
+            }
+        });
+        new Vue({
+            el: '#app'
+        });
+    </script>
+</body>
+
+</html>
+```
+
+### 23.2 等价写法
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+<body>
+    <div id="app">
+        <hello-world />
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script>
+        Vue.component('HelloWorld', Vue.extend({
+            template: `<h1>{{msg}}</h1>`,
+            data() {
+                return {
+                    msg: 'Hello World'
+                }
+            }
+        }));
+        new Vue({
+            el: '#app'
+        });
+    </script>
+</body>
+
+</html>
+```
+
+### 23.3 Vue.extend 的返回值
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+<body>
+    <div id="app">
+        <hello-world />
+    </div>
+    <div id="test"></div>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script>
+        // Vue.extend 返回的是一个基于此对象创建出的组件的构造函数
+        const HellWorldConstructor = Vue.extend({
+            template: `<h1>{{msg}}</h1>`,
+            data() {
+                return {
+                    msg: 'Hello World'
+                }
+            }
+        });
+        const p = new HellWorldConstructor({
+            data() {
+                return {
+                    msg: 'xxx'
+                }
+            }
+        });
+        p.$mount('#test');
+
+        // 下面两个是一个整体
+        Vue.component('HelloWorld', HellWorldConstructor);
+        new Vue({
+            el: '#app'
+        });
+    </script>
+</body>
+
+</html>
+```
+
