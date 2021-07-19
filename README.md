@@ -482,8 +482,6 @@ export default {
 </script>
 ```
 
-<font color="red">🤫 注意</font> <font color="#ccc">当你明确知道需要的是一个响应式数据对象，那么就使用 reactive 即可，其他情况使用 ref</font>
-
 ## 04. Lifecycle
 
 [选项 API](https://v3.cn.vuejs.org/api/options-lifecycle-hooks.html#beforecreate)
@@ -939,6 +937,8 @@ Todo：官方文档 ref、组合 API、细节变化...
 
 ## 14. ref
 
+<font color="red">🤫 注意</font> <font color="#ccc">当你明确知道需要的是一个响应式数据对象，那么就使用 reactive 即可，其他情况使用 ref</font>
+
 ### 14.1、定义响应式数据
 
 `ref` 函数，常用于把简单数据类型定义为响应式数据，注意 JS 中修改 ref 类型的值需要加 `.value`，模板中使用 ref 类型的值可以省略 `.value`
@@ -1241,7 +1241,47 @@ export default {
 
 ## 15. toRef
 
-### 15.1、转换原始对象中的属性❗
+### 15.1、转换响应式对象中的某个属性
+
+toRef(响应式对象)，影响原，**响应**
+
+![image-20210717195824355](README.assets/image-20210717195824355.png)
+
+```vue
+<template>
+    <p>{{ state }}</p>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { reactive, toRef } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const obj = reactive({
+            name: 'ifer',
+            age: 18
+        });
+        // 通过 toRef 将一个对象中的属性变成 ref 数据
+        const state = toRef(obj, 'name');
+        console.log(state);
+
+        const handleClick = () => {
+            state.value = 'xxx';
+
+            // 修改转换后的 ref 数据会影响到原数据，视图也更新了
+            console.log(obj);
+        };
+        return {
+            state,
+            handleClick
+        };
+    }
+};
+</script>
+```
+
+### 15.2、转换原始对象中的属性❗
 
 [官方文档](https://v3.cn.vuejs.org/api/refs-api.html#toref)
 
@@ -1283,45 +1323,7 @@ export default {
 </script>
 ```
 
-### 15.2、转换响应式对象中的某个属性
 
-toRef(响应式对象)，影响原，**响应**
-
-![image-20210717195824355](README.assets/image-20210717195824355.png)
-
-```vue
-<template>
-    <p>{{ state }}</p>
-    <button @click="handleClick">click</button>
-</template>
-
-<script>
-import { reactive, toRef } from 'vue';
-export default {
-    name: 'App',
-    setup() {
-        const obj = reactive({
-            name: 'ifer',
-            age: 18
-        });
-        // 通过 toRef 将一个对象中的属性变成 ref 数据
-        const state = toRef(obj, 'name');
-        console.log(state);
-
-        const handleClick = () => {
-            state.value = 'xxx';
-
-            // 修改转换后的 ref 数据会影响到原数据，视图也更新了
-            console.log(obj);
-        };
-        return {
-            state,
-            handleClick
-        };
-    }
-};
-</script>
-```
 
 
 
@@ -4385,7 +4387,7 @@ export default {
 
 ### 27.11 优化代码
 
-TODO：增加需求、例如编辑指令自动聚焦的指令，优化代码
+TODO：增加需求、例如编辑指令自动聚焦的指令；优化代码；动画补充；
 
 ## 28. Vue3 其他变更
 
