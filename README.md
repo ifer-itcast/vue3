@@ -917,7 +917,7 @@ export default {
         };
         // obj 将不被追踪，无法成为响应式数据
         // obj = markRaw(obj);
-        obj = markRaw(obj);
+        markRaw(obj);
         const state = reactive(obj);
         const handleClick = () => {
             state.name = 'xxx';
@@ -1107,6 +1107,8 @@ export default {
 
 ### 14.4、转换原始对象中的某个属性为响应式
 
+同 ref 包装简单数据类型
+
 ```vue
 <template>
     <p>{{ state }}</p>
@@ -1176,33 +1178,73 @@ export default {
 
 需求：只想把响应式对象中的某个属性倒出去供模板使用
 
-问题：发现丢失了响应式
+从 reactive 包装后的数据中解构出来的复杂数据类型还是响应式的
 
 ```vue
 <template>
-    <p>{{ name }}</p>
-    <button @click="handleClick">click</button>
+    <div>
+        <p>{{ info.address }}</p>
+        <button @click="updateAddress">update address</button>
+    </div>
 </template>
 
 <script>
 import { reactive } from 'vue';
 export default {
-    name: 'App',
     setup() {
-        const obj = reactive({
+        const state = reactive({
             name: 'ifer',
-            age: 18
+            age: 18,
+            info: {
+                address: '河南'
+            }
         });
-        // 解构赋值简单数据类型的 name 会使其失去响应式
-        // let { name } = obj;
-        // 类似的操作还有
-        let name = obj.name;
-        const handleClick = () => {
-            name = 'xxx';
+        // 只导出需要用到的 info
+        // 从 reactive 包装后的数据中结构出来的复杂数据类型还是响应式的
+        const { info } = state;
+        const updateAddress = () => {
+            info.address = '武汉';
+        };
+
+        return {
+            info,
+            updateAddress
+        };
+    }
+};
+</script>
+```
+
+❗问题：如果从 reactive 包装后的数据中解构简单数据类型，会使此数据失去响应式
+
+```vue
+<template>
+    <div>
+        <p>{{ name }}</p>
+        <button @click="updateName">update name</button>
+    </div>
+</template>
+
+<script>
+import { reactive } from 'vue';
+export default {
+    setup() {
+        const state = reactive({
+            name: 'ifer',
+            age: 18,
+            info: {
+                address: '河南'
+            }
+        });
+        // 如果从 reactive 包装后的数据中解构简单数据类型，会使此数据失去响应式
+        let { name } = state;
+        console.log(name)
+        const updateName = () => {
+            name = 'xxx'
         };
         return {
             name,
-            handleClick
+            updateName
         };
     }
 };
@@ -1213,26 +1255,33 @@ export default {
 
 ```vue
 <template>
-    <p>{{ name }}</p>
-    <button @click="handleClick">click</button>
+    <div>
+        <!-- 视图当中，Vue 内部会判断，如果是 ref 类型的数据，会自动添加 .value -->
+        <p>{{ name }}</p>
+        <button @click="updateName">update name</button>
+    </div>
 </template>
 
 <script>
 import { reactive, ref } from 'vue';
 export default {
-    name: 'App',
     setup() {
-        const obj = reactive({
+        const state = reactive({
             name: 'ifer',
-            age: 18
+            age: 18,
+            info: {
+                address: '河南'
+            }
         });
-        let name = ref(obj.name);
-        const handleClick = () => {
-            name.value = 'xxx';
+        // 把简单的一个字符串 state.name 包装成响应式的 ref 数据
+        let name = ref(state.name);
+        const updateName = () => {
+            // 注意在 JS 中修改的时候需要加 .value
+            name.value = 'xxx'
         };
         return {
             name,
-            handleClick
+            updateName
         };
     }
 };
@@ -1328,6 +1377,215 @@ export default {
 
 
 ## 16. toRefs
+
+失去响应式第一种写法
+
+```vue
+<template>
+    <div>x: {{ x }} y: {{ y }}</div>
+</template>
+
+<script>
+import { onMounted, onUnmounted, reactive } from 'vue';
+const useMouse = () => {
+    const mouse = reactive({
+        x: 0,
+        y: 0
+    });
+    const move = (e) => {
+        mouse.x = e.pageX;
+        mouse.y = e.pageY;
+    };
+    onMounted(() => {
+        document.addEventListener('mousemove', move);
+    });
+    onUnmounted(() => {
+        document.removeEventListener('mousemove', move);
+    });
+    return mouse;
+};
+export default {
+    name: 'App',
+    setup() {
+        // 解构出来的简单数据类型会使此数据失去响应式
+        const { x, y } = useMouse();
+        return {
+            x,
+            y
+        };
+    }
+};
+</script>
+```
+
+失去响应式第二种写法
+
+```vue
+<template>
+    <div>x: {{ x }} y: {{ y }}</div>
+</template>
+
+<script>
+import { onMounted, onUnmounted, reactive } from 'vue';
+const useMouse = () => {
+    const mouse = reactive({
+        x: 0,
+        y: 0
+    });
+    const move = (e) => {
+        mouse.x = e.pageX;
+        mouse.y = e.pageY;
+    };
+    onMounted(() => {
+        document.addEventListener('mousemove', move);
+    });
+    onUnmounted(() => {
+        document.removeEventListener('mousemove', move);
+    });
+    return {
+        x: mouse.x,
+        y: mouse.y
+    };
+};
+export default {
+    name: 'App',
+    setup() {
+        // 解构出来的简单数据类型会使此数据失去响应式
+        const { x, y } = useMouse();
+        return {
+            x,
+            y
+        };
+    }
+};
+</script>
+```
+
+失去响应式第三种写法
+
+```vue
+<template>
+    <div>x: {{ x }} y: {{ y }}</div>
+</template>
+
+<script>
+import { onMounted, onUnmounted, reactive } from 'vue';
+const useMouse = () => {
+    const mouse = reactive({
+        x: 0,
+        y: 0
+    });
+    const move = (e) => {
+        mouse.x = e.pageX;
+        mouse.y = e.pageY;
+    };
+    onMounted(() => {
+        document.addEventListener('mousemove', move);
+    });
+    onUnmounted(() => {
+        document.removeEventListener('mousemove', move);
+    });
+    return {
+        ...mouse
+    };
+};
+export default {
+    name: 'App',
+    setup() {
+        // 解构出来的简单数据类型会使此数据失去响应式
+        const { x, y } = useMouse();
+        return {
+            x,
+            y
+        };
+    }
+};
+</script>
+```
+
+解决方案
+
+```vue
+<template>
+    <div>x: {{ x }} y: {{ y }}</div>
+</template>
+
+<script>
+import { onMounted, onUnmounted, reactive, toRefs } from 'vue';
+const useMouse = () => {
+    const mouse = reactive({
+        x: 0,
+        y: 0
+    });
+    const move = (e) => {
+        mouse.x = e.pageX;
+        mouse.y = e.pageY;
+    };
+    onMounted(() => {
+        document.addEventListener('mousemove', move);
+    });
+    onUnmounted(() => {
+        document.removeEventListener('mousemove', move);
+    });
+    return mouse;
+};
+export default {
+    name: 'App',
+    setup() {
+        // 解构出来的简单数据类型会使此数据失去响应式
+        const mouse = useMouse();
+        // 把 mouse 里面的所有单个数据变成响应式的 ref
+        const {x, y} = toRefs(mouse)
+        return {
+            x,y
+        };
+    }
+};
+</script>
+```
+
+其他写法
+
+```vue
+<template>
+    <div>x: {{ x }} y: {{ y }}</div>
+</template>
+
+<script>
+import { onMounted, onUnmounted, reactive, toRef, toRefs } from 'vue';
+const useMouse = () => {
+    const mouse = reactive({
+        x: 0,
+        y: 0
+    });
+    const move = (e) => {
+        mouse.x = e.pageX;
+        mouse.y = e.pageY;
+    };
+    onMounted(() => {
+        document.addEventListener('mousemove', move);
+    });
+    onUnmounted(() => {
+        document.removeEventListener('mousemove', move);
+    });
+    // return toRefs(mouse)
+
+    return {
+        ...toRefs(mouse)
+    };
+};
+export default {
+    name: 'App',
+    setup() {
+        // 解构出来的简单数据类型会使此数据失去响应式
+        const {x, y} = useMouse();
+        return {
+            x,y
+        };
+    }
+};
+</script>
+```
 
 ### 16.1 基本使用
 
@@ -4959,342 +5217,3 @@ oInput.oninput = function (e) {
     proxyObj.data.xxx = e.target.value;
 };
 ```
-
-## 21. Vue.extend
-
-### 21. 1 基本操作
-
-`App.vue`
-
-```vue
-<template>
-    <div id="app">
-        <toast :show="show" />
-        <button @click="show = !show">弹框</button>
-    </div>
-</template>
-
-<script>
-import Toast from './components/Toast.vue';
-export default {
-    name: 'App',
-    components: {
-        Toast
-    },
-    data() {
-        return {
-            show: false
-        };
-    }
-};
-</script>
-```
-
-`Toast.vue`
-
-```vue
-<template>
-    <div class="container" v-if="show">
-        <div>{{ text }}</div>
-    </div>
-</template>
-<script>
-export default {
-    name: 'Toast',
-    props: {
-        show: {
-            type: Boolean,
-            default: false
-        },
-        text: {
-            type: String,
-            default: '弹框~~'
-        }
-    }
-};
-</script>
-<style scoped>
-.container {
-    position: fixed;
-    top: calc(50% - 20px);
-    left: calc(50% - 50px);
-    width: 100px;
-    height: 40px;
-    text-align: center;
-    line-height: 40px;
-    color: #fff;
-    background-color: rgba(0, 0, 0, 0.8);
-    border-radius: 10px;
-    box-sizing: border-box;
-}
-</style>
-```
-
-### 21.2 动态创建
-
-[Vue.extend](https://cn.vuejs.org/v2/api/#Vue-extend)
-
-`main.js`
-
-```js
-import Vue from 'vue';
-import App from './App.vue';
-
-import toastRegistry from './components/toast';
-Vue.use(toastRegistry);
-
-Vue.config.productionTip = false;
-
-new Vue({
-    render: (h) => h(App)
-}).$mount('#app');
-```
-
-`App.vue`
-
-```vue
-<template>
-    <div id="app">
-        <button @click="$toast('Hello')">弹框</button>
-    </div>
-</template>
-
-<script>
-export default {
-    name: 'App'
-};
-</script>
-```
-
-`components/Toast.vue`
-
-```vue
-<template>
-    <div class="container" v-if="show">
-        <div>{{ text }}</div>
-    </div>
-</template>
-<script>
-export default {
-    name: 'Toast'
-};
-</script>
-<style scoped>
-.container {
-    position: fixed;
-    top: calc(50% - 20px);
-    left: calc(50% - 50px);
-    width: 100px;
-    height: 40px;
-    text-align: center;
-    line-height: 40px;
-    color: #fff;
-    background-color: rgba(0, 0, 0, 0.8);
-    border-radius: 10px;
-    box-sizing: border-box;
-}
-</style>
-```
-
-`components/toast.js`
-
-```js
-import Vue from 'vue';
-import Toast from './Toast.vue';
-// ToastConstructor 是 Toast 组件的构造函数
-const ToastConstructor = Vue.extend(Toast);
-function showToast(text, duration = 2000) {
-    // toastDOM 是 Toast 组件的实例
-    const toastDOM = new ToastConstructor({
-        el: document.createElement('div'), // 例如写 '#app' 则会把 #app 替换成此组件；创建一个 div，此 div 则会被组件替换
-        data() {
-            return {
-                text: text,
-                show: true
-            };
-        }
-    });
-    document.body.appendChild(toastDOM.$el);
-    setTimeout(() => {
-        toastDOM.show = false;
-    }, duration);
-}
-
-function toastRegistry() {
-    Vue.prototype.$toast = showToast;
-}
-export default toastRegistry;
-```
-
-### 21.3 官网案例
-
-`main.js`
-
-```js
-import Vue from 'vue';
-import Test from './Test.vue';
-const Profile = Vue.extend(Test);
-new Profile({
-    propsData: {
-        propTitle: 'World'
-    },
-    data() {
-        return {
-            localTitle: 'Hello'
-        };
-    }
-}).$mount('#app');
-```
-
-或者
-
-```js
-import Vue from 'vue';
-import Test from './Test.vue';
-const Profile = Vue.extend(Test);
-const p = new Profile({
-    el: document.createElement('div'),
-    propsData: {
-        propTitle: 'World'
-    },
-    data() {
-        return {
-            localTitle: 'Hello'
-        };
-    }
-});
-document.body.appendChild(p.$el);
-```
-
-`test.vue`
-
-```vue
-<template>
-    <p>{{ localTitle }}-{{ propTitle }}</p>
-</template>
-
-<script>
-export default {
-    name: 'Test',
-    props: ['propTitle']
-};
-</script>
-```
-
-## 23. 解释
-
-### 23.1 创建一个组件
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-
-<body>
-    <div id="app">
-        <hello-world />
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
-    <script>
-        Vue.component('HelloWorld', {
-            template: `<h1>{{msg}}</h1>`,
-            data() {
-                return {
-                    msg: 'Hello World'
-                }
-            }
-        });
-        new Vue({
-            el: '#app'
-        });
-    </script>
-</body>
-
-</html>
-```
-
-### 23.2 等价写法
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-
-<body>
-    <div id="app">
-        <hello-world />
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
-    <script>
-        Vue.component('HelloWorld', Vue.extend({
-            template: `<h1>{{msg}}</h1>`,
-            data() {
-                return {
-                    msg: 'Hello World'
-                }
-            }
-        }));
-        new Vue({
-            el: '#app'
-        });
-    </script>
-</body>
-
-</html>
-```
-
-### 23.3 Vue.extend 的返回值
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-
-<body>
-    <div id="app">
-        <hello-world />
-    </div>
-    <div id="test"></div>
-    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
-    <script>
-        // Vue.extend 返回的是一个基于此对象创建出的组件的构造函数
-        const HellWorldConstructor = Vue.extend({
-            template: `<h1>{{msg}}</h1>`,
-            data() {
-                return {
-                    msg: 'Hello World'
-                }
-            }
-        });
-        const p = new HellWorldConstructor({
-            data() {
-                return {
-                    msg: 'xxx'
-                }
-            }
-        });
-        p.$mount('#test');
-
-        // 下面两个是一个整体
-        Vue.component('HelloWorld', HellWorldConstructor);
-        new Vue({
-            el: '#app'
-        });
-    </script>
-</body>
-
-</html>
-```
-
