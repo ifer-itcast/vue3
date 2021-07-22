@@ -1004,6 +1004,70 @@ export default {
 
 Vue 内部会使用 `isRef` 和 `isReactive` 方法来判断是 `ref` 还是 `reactive` 数据，以此来决定是否添加 `.value`
 
+🎈 注意点
+
+普通对象中的 ref 数据不会自动解包
+
+```vue
+<template>
+    <!-- 注意：普通对象中的 ref 数据不会自动解包 -->
+    <p>{{ obj.username.value }}</p>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { ref, reactive } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const username = ref('Hello World');
+        const obj = {
+            username
+        }
+        const handleClick = () => {
+            // username.value = 'xxx';
+            obj.username.value = 'xxx';
+        };
+        return {
+            obj,
+            handleClick,
+        };
+    },
+};
+</script>
+```
+
+reactive 对象中的 ref 数据会自动解包，[详见文档](https://v3.cn.vuejs.org/api/basic-reactivity.html#reactive)
+
+```vue
+<template>
+    <!-- 注意：reactive 对象中的 ref 数据会自动解包 -->
+    <p>{{ obj.username }}</p>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { ref, reactive } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const username = ref('Hello World');
+        const obj = reactive({
+            username
+        })
+        const handleClick = () => {
+            // username.value = 'xxx';
+            obj.username = 'xxx';
+        };
+        return {
+            obj,
+            handleClick,
+        };
+    },
+};
+</script>
+```
+
 ### 14.2、计数器
 
 ```vue
@@ -1371,10 +1435,6 @@ export default {
 };
 </script>
 ```
-
-
-
-
 
 ## 16. toRefs
 
@@ -1978,6 +2038,8 @@ export default {
 
 ## 18. 🧐 unRef
 
+[官方文档](https://v3.cn.vuejs.org/api/refs-api.html#unref)
+
 ```vue
 <script>
 import { unref, ref } from 'vue';
@@ -1991,7 +2053,7 @@ export default {
 </script>
 ```
 
-修改数据时，使用 `unRef` 来替代 `.value`
+明白了 `unRef` 的原理，那么修改数据时，可以使用 `unRef` 来替代 `.value`
 
 ```vue
 <template>
@@ -2025,6 +2087,8 @@ export default {
 ```
 
 ## 19. 🧐 customRef
+
+[官方文档](https://v3.cn.vuejs.org/api/refs-api.html#customref)
 
 ### 19.1、基本语法
 
@@ -2118,9 +2182,7 @@ const useDebouncedRef = (value, delay = 200) => {
             timer = setTimeout(() => {
                 value = newValue;
                 // 正常情况下，频繁输入内容，会频繁设置新值给 value，频繁触发这里的 trigger 通知视图更新
-                // 其实频率不需要这么高，提升性能
-                // 你可能疑惑：快速输入内容并没有触发这里的 trigger，为什么 input 框中的内容也变化了
-                // 答案是：那时候你看到的内容是 HTML input 标签所具有的特性，“可以输入内容”，但其实这个内容并不是 Vue 数据驱动的结果
+                // 其实频率不需要这么高，可以提升性能
                 trigger();
             }, delay);
         }
@@ -2306,7 +2368,7 @@ export default {
 </script>
 ```
 
-### 23.2、监听整个 reactive 数据
+### 23.2、监听 reactive 数据
 
 ```vue
 <template>
@@ -2325,7 +2387,7 @@ export default {
                 eat: '西瓜',
             },
         });
-
+		// 只要 obj 中的任何数据变化都会触发回调，默认就是深度监听
         watch(obj, (newValue, oldValue) => {
             // !注意：监听对象的时候 newValue 和 oldValue 是全等的
             console.log(newValue === oldValue); // true
@@ -2337,9 +2399,7 @@ export default {
 </script>
 ```
 
-### 23.3、监听响应式对象中某一个属性的变化
-
-复杂数据类型需要进行深度监听
+### 23.3、监听 reactive 数据中某一个属性
 
 ```vue
 <template>
@@ -2355,55 +2415,18 @@ export default {
         const obj = reactive({
             name: 'ifer',
             hobby: {
-                eat: '西瓜',
-            },
+                eat: '西瓜'
+            }
         });
 
-        // 问题：不会触发后面的回调
-        watch(
-            () => obj.hobby,
-            (newValue, oldValue) => {
-                console.log(newValue === oldValue);
-            }
-        );
+        watch(() => obj.hobby.eat, (newValue, oldValue) => {
+            console.log(newValue === oldValue);
+        });
 
         return { obj };
-    },
+    }
 };
 </script>
-```
-
-解决1：换一种写法
-
-```js
-watch(obj.hobby, (newValue, oldValue) => {
-    console.log(newValue === oldValue);
-});
-```
-
-解决2：监听具体的某一个简单数据类型
-
-```js
-watch(
-    () => obj.hobby.eat,
-    (newValue, oldValue) => {
-        console.log(newValue, oldValue);
-    }
-);
-```
-
-解决3：深度监听
-
-```js
-watch(
-    () => obj.hobby,
-    (newValue, oldValue) => {
-        console.log(newValue === oldValue);
-    },
-    {
-        deep: true
-    }
-);
 ```
 
 ### 23.4、监听多个数据
@@ -2441,6 +2464,63 @@ export default {
 </script>
 ```
 
+### 23.5、一个注意点
+
+```vue
+<template>
+    <ul>
+        <li v-for="(item, index) in state.arr" :key="index">{{ item }}</li>
+    </ul>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { onMounted, reactive, watch } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const state = reactive({
+            arr: []
+        });
+        const handleClick = () => {
+            // 这里操作的是全新的 state.arr，即 onMounted 中赋值的数组
+            state.arr.push(1);
+        };
+        onMounted(() => {
+            // !#1 加了这一行发现不会触发 watch 监听了
+            state.arr = [];
+        });
+
+        // 因为这里默认监听的是第一次的 state.arr，而不是 #1 处重新赋值的数组
+        watch(state.arr, (newVal) => {
+            console.log(newVal);
+        }, {
+            // 其实默认就是深度监听
+            deep: true
+        });
+
+        // 解决办法一：监听整个 state
+        /* watch(state, (newVal) => {
+            console.log(newVal);
+        }); */
+
+        // 解决办法二：用 getter 的方式进行深度监听
+        /* watch(() => state.arr, (newVal) => {
+            console.log(newVal);
+        }, {
+            deep: true
+        }); */
+        return {
+            state,
+            handleClick
+        };
+    }
+};
+</script>
+```
+
+
+
 ## 24. watchEffect
 
 1、`watchEffect `不需要手动传入依赖
@@ -2471,6 +2551,41 @@ export default {
 };
 </script>
 ```
+
+停止侦听
+
+```vue
+<template>
+    <p>{{ age }}</p>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { ref, watchEffect } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const age = ref(18);
+
+        const stop = watchEffect(() => {
+            console.log(age.value);
+        });
+
+        const handleClick = () => {
+            age.value++;
+            if (age.value > 30) {
+                // 停止监听，数字还是会继续累加，但不再侦听了，watch 的停止侦听也是同样的使用方式
+                stop();
+            }
+        };
+
+        return { age, handleClick };
+    }
+};
+</script>
+```
+
+TODO：清理副作用、后面的配置参数（例如等 DOM 更新后执行）
 
 ## 25. 📌 再说留言板
 
@@ -2574,7 +2689,395 @@ input::-webkit-inner-spin-button {
 
 ### 25.2、Vue3
 
+#### 1. 获取数据
 
+```vue
+<template>
+    <ul>
+        <li v-for="item in list" :key="item.id">{{ item.name }}</li>
+    </ul>
+</template>
+
+<script>
+import { reactive, toRefs } from 'vue';
+export default {
+    setup() {
+        // !#1
+        const state = reactive({
+            list: [
+                { id: 1, name: 'ifer' },
+                { id: 2, name: 'elser' }
+            ]
+        });
+        return {
+            ...toRefs(state)
+        };
+    }
+};
+</script>
+```
+
+#### 2. 添加数据
+
+```vue
+<template>
+    <form @submit.prevent="submitData">
+        <input type="text" v-model="user.id" />
+        <input type="text" v-model="user.name" />
+        <input type="submit" />
+    </form>
+    <ul>
+        <li v-for="item in list" :key="item.id">{{ item.name }}</li>
+    </ul>
+</template>
+
+<script>
+import { reactive, toRefs } from 'vue';
+export default {
+    setup() {
+        // !#1
+        const state = reactive({
+            list: [
+                { id: 1, name: 'ifer' },
+                { id: 2, name: 'elser' }
+            ],
+            // !#2.1
+            user: { id: '', name: '' }
+        });
+        // !#2.2
+        const submitData = () => {
+            state.list.push({
+                id: state.user.id,
+                name: state.user.name
+            });
+            state.user.id = '';
+            state.user.name = '';
+        };
+        return {
+            ...toRefs(state),
+            submitData
+        };
+    }
+};
+</script>
+```
+
+#### 3. 删除数据
+
+```vue
+<template>
+    <form @submit.prevent="submitData">
+        <input type="text" v-model="user.id" />
+        <input type="text" v-model="user.name" />
+        <input type="submit" />
+    </form>
+    <ul>
+        <li v-for="item,index in list" :key="item.id" @click="rmData(index)">
+            {{ item.name }}
+        </li>
+    </ul>
+</template>
+
+<script>
+import { reactive, toRefs } from 'vue';
+export default {
+    setup() {
+        // !#1
+        const state = reactive({
+            list: [
+                { id: 1, name: 'ifer' },
+                { id: 2, name: 'elser' }
+            ],
+            // !#2.1
+            user: { id: '', name: '' }
+        });
+        // !#2.2
+        const submitData = () => {
+            state.list.push({
+                id: state.user.id,
+                name: state.user.name
+            });
+            state.user.id = '';
+            state.user.name = '';
+        };
+        // !#3 添加数据
+        const rmData = (index) => {
+            state.list.splice(index, 1);
+        };
+        return {
+            ...toRefs(state),
+            submitData,
+            rmData
+        };
+    }
+};
+</script>
+```
+
+#### 4. 统计数量
+
+```vue
+<template>
+    <form @submit.prevent="submitData">
+        <input type="text" v-model="user.id" />
+        <input type="text" v-model="user.name" />
+        <input type="submit" />
+    </form>
+    <ul>
+        <li v-for="item,index in list" :key="item.id" @click="rmData(index)">
+            {{ item.name }}
+        </li>
+    </ul>
+    <p>总计：{{count}}</p>
+</template>
+
+<script>
+import { reactive, toRefs, computed } from 'vue';
+export default {
+    setup() {
+        // !#1
+        const state = reactive({
+            list: [
+                { id: 1, name: 'ifer' },
+                { id: 2, name: 'elser' }
+            ],
+            // !#2.1
+            user: { id: '', name: '' },
+            // !#4 统计数量
+            count: computed(() => state.list.length)
+        });
+        // !#2.2
+        const submitData = () => {
+            state.list.push({
+                id: state.user.id,
+                name: state.user.name
+            });
+            state.user.id = '';
+            state.user.name = '';
+        };
+        // !#3 添加数据
+        const rmData = (index) => {
+            state.list.splice(index, 1);
+        };
+        return {
+            ...toRefs(state),
+            submitData,
+            rmData
+        };
+    }
+};
+</script>
+```
+
+#### 5. ID 判重
+
+```vue
+<template>
+    <form @submit.prevent="submitData">
+        <input type="text" v-model="user.id" />
+        <input type="text" v-model="user.name" />
+        <!-- // !#5.2 -->
+        <input type="submit" :disabled="disabled">
+    </form>
+    <ul>
+        <li v-for="item,index in list" :key="item.id" @click="rmData(index)">
+            {{ item.name }}
+        </li>
+    </ul>
+    <p>总计：{{count}}</p>
+</template>
+
+<script>
+import { reactive, toRefs, computed, watch, watchEffect } from 'vue';
+export default {
+    setup() {
+        // !#1
+        const state = reactive({
+            list: [
+                { id: 1, name: 'ifer' },
+                { id: 2, name: 'elser' }
+            ],
+            // !#2.1
+            user: { id: '', name: '' },
+            // !#4 统计数量
+            count: computed(() => state.list.length),
+            // !#5.1
+            disabled: false
+        });
+        // !#2.2
+        const submitData = () => {
+            state.list.push({
+                id: state.user.id,
+                name: state.user.name
+            });
+            state.user.id = '';
+            state.user.name = '';
+        };
+        // !#3 添加数据
+        const rmData = (index) => {
+            state.list.splice(index, 1);
+        };
+        // !#5.3 ID 判重
+        watch(() => state.user.id, (newUId) => {
+            state.disabled = state.list.some(item => item.id === +newUId);
+        });
+        return {
+            ...toRefs(state),
+            submitData,
+            rmData
+        };
+    }
+};
+</script>
+```
+
+#### 6. 数据存储
+
+```vue
+<template>
+    <form @submit.prevent="submitData">
+        <input type="text" v-model="user.id" />
+        <input type="text" v-model="user.name" />
+        <!-- // !#5.2 -->
+        <input type="submit" :disabled="disabled">
+    </form>
+    <ul>
+        <li v-for="item,index in list" :key="item.id" @click="rmData(index)">
+            {{ item.name }}
+        </li>
+    </ul>
+    <p>总计：{{count}}</p>
+</template>
+
+<script>
+import { reactive, toRefs, computed, watch } from 'vue';
+export default {
+    setup() {
+        // !#1
+        const state = reactive({
+            // !#6.2
+            list: JSON.parse(localStorage.getItem('MSG')),
+            // !#2.1
+            user: { id: '', name: '' },
+            // !#4 统计数量
+            count: computed(() => state.list.length),
+            // !#5.1
+            disabled: false
+        });
+        // !#2.2
+        const submitData = () => {
+            state.list.push({
+                id: state.user.id,
+                name: state.user.name
+            });
+            state.user.id = '';
+            state.user.name = '';
+        };
+        // !#3 添加数据
+        const rmData = (index) => {
+            state.list.splice(index, 1);
+        };
+        // !#5.3 ID 判重
+        watch(() => state.user.id, (newUId) => {
+            state.disabled = state.list.some(item => item.id === +newUId);
+        });
+        // !#6.1
+        watch(state.list, () => {
+            localStorage.setItem('MSG', JSON.stringify(state.list));
+        });
+        return {
+            ...toRefs(state),
+            submitData,
+            rmData
+        };
+    }
+};
+</script>
+```
+
+#### 7. 优化代码
+
+App.vue
+
+```vue
+<template>
+    <form @submit.prevent="submitData">
+        <input type="text" v-model="user.id" />
+        <input type="text" v-model="user.name" />
+        <!-- // !#5.2 -->
+        <input type="submit" :disabled="disabled" />
+    </form>
+    <ul>
+        <li v-for="(item, index) in list" :key="item.id" @click="rmData(index)">
+            {{ item.name }}
+        </li>
+    </ul>
+    <p>总计：{{ count }}</p>
+</template>
+
+<script>
+import { toRefs } from 'vue';
+import useMsg from './hooks/useMsg';
+export default {
+    setup() {
+        const { state, submitData, rmData } = useMsg();
+        return {
+            ...toRefs(state),
+            submitData,
+            rmData
+        };
+    }
+};
+</script>
+```
+
+`hooks/useMsg.js`
+
+```js
+import { reactive, toRefs, computed, watch } from 'vue';
+export default function useMsg() {
+    // !#1
+    const state = reactive({
+        // !#6.2
+        list: JSON.parse(localStorage.getItem('MSG')),
+        // !#2.1
+        user: { id: '', name: '' },
+        // !#4 统计数量
+        count: computed(() => state.list.length),
+        // !#5.1
+        disabled: false
+    });
+    // !#2.2
+    const submitData = () => {
+        state.list.push({
+            id: state.user.id,
+            name: state.user.name
+        });
+        state.user.id = '';
+        state.user.name = '';
+    };
+    // !#3 添加数据
+    const rmData = (index) => {
+        state.list.splice(index, 1);
+    };
+    // !#5.3 ID 判重
+    watch(
+        () => state.user.id,
+        (newUId) => {
+            state.disabled = state.list.some((item) => item.id === +newUId);
+        }
+    );
+    // !#6.1
+    watch(state.list, () => {
+        localStorage.setItem('MSG', JSON.stringify(state.list));
+    });
+    return {
+        state,
+        submitData,
+        rmData
+    }
+}
+```
 
 ## 26. 组件通讯
 
@@ -2821,21 +3324,263 @@ export default {
     name: 'Children',
     setup() {
         const num = inject('num');
+        // 后代也可以直接修改传递过来的数据
+        /* const changeNum = () => {
+            num.value = 'xxx';
+        }; */
+        // 但，更建议这样
         const changeNum = inject('changeNum');
         return {
             num,
-            changeNum,
+            changeNum
         };
-    },
+    }
 };
 </script>
 ```
 
-## 19. v-model
+## 27. 异步组件
+
+### 27.1 问题展示
+
+需求：创建/销毁一个组件
+
+问题：没有被创建的组件代码却也被加载了，通过 F12 Network 查看有没有文件请求可以证明
+
+App.vue
+
+```vue
+<template>
+    <div>
+        <hello-world v-if="bBar" />
+        <button @click="handleClick">显示/隐藏</button>
+    </div>
+</template>
+
+<script>
+import HelloWorld from './components/HelloWorld.vue'
+export default {
+    name: 'App',
+    components: {
+        HelloWorld
+    },
+    data() {
+        return {
+            bBar: false
+        }
+    },
+    methods: {
+        handleClick() {
+            this.bBar = !this.bBar
+        }
+    }
+}
+</script>
+```
+
+HelloWorld.vue
+
+```vue
+<template>
+    <div>
+        Hello World
+    </div>
+</template>
+```
+
+### 27.2 Vue2 解决
+
+```vue
+<template>
+    <div>
+        <hello-world v-if="bBar" />
+        <button @click="handleClick">显示/隐藏</button>
+    </div>
+</template>
+
+<script>
+export default {
+    name: 'App',
+    components: {
+        HelloWorld: () => import(/* webpackChunkName: 'HelloWorld' */'./components/HelloWorld.vue')
+    },
+    data() {
+        return {
+            bBar: false
+        }
+    },
+    methods: {
+        handleClick() {
+            this.bBar = !this.bBar
+        }
+    }
+}
+</script>
+```
+
+精细化配置，**注意测试的时候勾选 Network 种的 Disabled cache**
+
+```vue
+<template>
+    <div>
+        <AsyncHelloWorld v-if="bBar"/>
+        <button @click="handleClick">显示/隐藏</button>
+    </div>
+</template>
+
+<script>
+import Loading from './components/Loading.vue'
+import Error from './components/Error.vue'
+const AsyncHelloWorld = () => ({
+    component: import('./components/HelloWorld.vue'),
+    loading: Loading,
+    error: Error,
+    delay: 200, // 超过 200ms 的延迟就展示 Loading 组件
+    timeout: 3000 // 超过 3s 的延迟就展示 Error 组件
+})
+export default {
+    name: 'App',
+    components: {
+        AsyncHelloWorld
+    },
+    data() {
+        return {
+            bBar: false
+        }
+    },
+    methods: {
+        handleClick() {
+            this.bBar = !this.bBar
+        }
+    }
+}
+</script>
+```
+
+### 27.3 Vue3 解决
+
+基本写法
+
+```vue
+<template>
+    <hello-world v-if="bBar" />
+    <button @click="handleClick">显示/隐藏</button>
+</template>
+
+<script>
+import { ref } from 'vue';
+import HelloWorld from './components/HelloWorld.vue'
+export default {
+    name: 'App',
+    components: {
+        HelloWorld
+    },
+    setup() {
+        const bBar = ref(true);
+        const handleClick = () => {
+            bBar.value = !bBar.value;
+        };
+        return {
+            bBar,
+            handleClick
+        }
+    }
+};
+</script>
+```
+
+基本解决
+
+```vue
+<template>
+    <AsyncHelloWorld v-if="bBar"/>
+    <button @click="handleClick">显示/隐藏</button>
+</template>
+
+<script>
+import { ref, defineAsyncComponent } from 'vue';
+export default {
+    name: 'App',
+    components: {
+        AsyncHelloWorld: defineAsyncComponent(() => import('./components/HelloWorld.vue'))
+    },
+    setup() {
+        const bBar = ref(false);
+        const handleClick = () => {
+            bBar.value = !bBar.value;
+        };
+        return {
+            bBar,
+            handleClick
+        }
+    }
+};
+</script>
+```
+
+精细化配置
+
+```vue
+<template>
+    <AsyncHelloWorld v-if="bBar"/>
+    <button @click="handleClick">显示/隐藏</button>
+</template>
+
+<script>
+import { ref, defineAsyncComponent } from 'vue';
+import Loading from './components/Loading.vue';
+import Error from './components/Error.vue'
+const AsyncHelloWorld = defineAsyncComponent({
+    loader: () => import('./components/HelloWorld.vue'),
+    loadingComponent: Loading,
+    errorComponent: Error,
+    delay: 200,
+    timeout: 3000,
+})
+export default {
+    name: 'App',
+    components: {
+        AsyncHelloWorld
+    },
+    setup() {
+        const bBar = ref(false);
+        const handleClick = () => {
+            bBar.value = !bBar.value;
+        };
+        return {
+            bBar,
+            handleClick
+        }
+    }
+};
+</script>
+```
+
+## 28. v-model
 
 [v-model](https://v3.cn.vuejs.org/guide/migration/v-model.html)
 
-### 19.1、基本使用
+### 28.0、在 input 元素上使用
+
+```vue
+<template>
+    <input type="text" v-model="msg" />
+</template>
+
+<script>
+import { ref } from 'vue';
+export default {
+    setup() {
+        const msg = ref('');
+        return {
+            msg
+        };
+    }
+};
+</script>
+```
+
+### 28.1、在组件上使用
 
 `App.vue`
 
@@ -2866,8 +3611,6 @@ export default {
 
 `HelloWorld.vue`
 
-子组件中的 model 选项被移除
-
 ```vue
 <template>
     <button @click="handleClick">修改</button>
@@ -2876,19 +3619,22 @@ export default {
 <script>
 export default {
     name: 'HelloWorld',
+    props: ['modelValue'],
     setup(props, ctx) {
+        console.log(props.modelValue); // 'Hello World'
+        
         const handleClick = () => {
             ctx.emit('update:modelValue', '哈哈');
         };
         return {
-            handleClick,
+            handleClick
         };
-    },
+    }
 };
 </script>
 ```
 
-### 19.2、修改默认的 modelValue
+### 28.2、修改默认的 modelValue
 
 `App.vue`
 
@@ -2939,9 +3685,9 @@ export default {
 </script>
 ```
 
-## 21. Teleport
+## 28. Teleport
 
-希望在组件内部使用 `Dialog`, 又希望渲染的 DOM 结构不嵌套在组件的 DOM 中
+希望在组件内部使用 `Dialog`, 又不希望在此组件内部渲染 DOM 结构
 
 App.vue
 
@@ -2967,7 +3713,7 @@ import Dialog from './components/Dialog.vue';
 export default {
     name: 'App',
     components: {
-        Dialog,
+        Dialog
     },
     setup() {
         const show = ref(false);
@@ -2975,7 +3721,7 @@ export default {
             show.value = !show.value;
         };
         return { show, handleClick };
-    },
+    }
 };
 </script>
 ```
@@ -2985,28 +3731,30 @@ Dialog.vue
 ```vue
 <template>
     <!-- <teleport to="body"> -->
-    <teleport to="#dialog">
-        <div class="wrapper" v-show="show" @click="$emit('update:show', !show)">
-            <div class="el-message-box" @click.stop>
+    <!-- <teleport to="#dialog"> -->
+    <div class="wrapper" v-if="show" @click="$emit('update:show', !show)">
+        <div class="el-message-box" @click.stop>
+            <div style="text-align: right">
                 <span @click.stop="$emit('update:show', !show)">x</span>
-                <div class="header">
-                    <slot name="header"></slot>
-                </div>
-                <div class="content">
-                    <slot></slot>
-                </div>
-                <div class="footer">
-                    <slot name="footer"></slot>
-                </div>
+            </div>
+            <div class="header">
+                <slot name="header"></slot>
+            </div>
+            <div class="content">
+                <slot></slot>
+            </div>
+            <div class="footer">
+                <slot name="footer"></slot>
             </div>
         </div>
-    </teleport>
+    </div>
+    <!-- </teleport> -->
 </template>
 
 <script>
 export default {
     name: 'Dialog',
-    props: ['show'],
+    props: ['show']
 };
 </script>
 
@@ -3039,7 +3787,7 @@ export default {
 </style>
 ```
 
-## 22. Suspense
+## 29. Suspense
 
 App.vue
 
@@ -3103,7 +3851,7 @@ export default {
 </script>
 ```
 
-## 23. Fragment
+## 30. Fragment
 
 不必有一个根节点
 
@@ -3120,17 +3868,9 @@ export default {
 </script>
 ```
 
-## 异步组件
-
-之前写法，现在写法
 
 
-
-
-
-
-
-## 27. 📌 TodoList
+## 32. 📌 TodoList
 
 <img src="README.assets/image-20210714082324494.png" alt="image-20210714082324494" style="zoom:67%;" />
 
