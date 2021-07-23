@@ -1853,7 +1853,7 @@ export default {
 
 ### 17.1、需求
 
-需求：只想把用到的简单数据类型 `username` 掏出去
+需求：只想把用到的简单数据类型 `name` 掏出去
 
 问题：数据不是响应式的了（注意如果掏出去的是复杂数据类型则还是会保留响应式）
 
@@ -2016,6 +2016,8 @@ const useUser = () => {
     });
     const updateName = () => {
         userInfo.name = 'xxx';
+        // 对 userInfo 的修改会影响经过 toRefs 转换后端结果
+        // 对通过 toRefs 转换后的 ref 数据的修改也会影响 userInfo
     };
     return {
         // 转换 reactive 里面的每一个单值为响应式数据
@@ -2053,6 +2055,39 @@ export default {
 </script>
 ```
 
+Bug
+
+```vue
+<template>
+    <div>
+        {{count}}
+    </div>
+    <p><button @click="handleClick">click</button></p>
+</template>
+
+<script>
+import { unref, ref, isRef } from 'vue'
+export default {
+    setup () {
+        const count = ref(0)
+        // console.log(count.value)
+        // console.log(unref(count) === count.value)
+        // console.log(isRef(count) ? count.value : count);
+
+        // let num = unref(count)
+        const handleClick =() => {
+            // count.value ++;
+            console.log(unref(count));
+        }
+        return {
+            count,
+            handleClick
+        }
+    }
+}
+</script>
+```
+
 明白了 `unRef` 的原理，那么修改数据时，可以使用 `unRef` 来替代 `.value`
 
 ```vue
@@ -2068,7 +2103,7 @@ export default {
         const origin = {
             name: 'ifer'
         };
-        const state = ref(origin);
+        const state = ref(origin); // reactive {value: { name: 'ifer' }}
 
         console.log(unref(state) === state.value); // true
 
@@ -2283,58 +2318,59 @@ export default {
 
 ```vue
 <template>
-    <p>今年：{{ age }}</p>
-    <p>{{ str }}</p>
+    <p>小明今年 {{age}} 岁了</p>
+    <p>那么明年是多少岁呢？参考答案 {{rAge}}</p>
+    <p><button @click="age++">click</button></p>
 </template>
 
 <script>
-import { computed, isRef, ref } from 'vue';
+import { computed, ref, isRef } from 'vue';
 export default {
-    name: 'App',
-    setup() {
+    setup () {
         const age = ref(18);
-        const str = computed(() => {
-            return `xxx 明年 ${age.value + 1} 岁了`;
-        });
-        // 注意 computed 的返回值是一个 ref 类型的数据
-        console.log(isRef(str)); // true
-        return { age, str };
+
+        const rAge = computed(() => age.value + 1);
+
+        // computed 返回的是一个 ref 类型的数据
+        console.log(isRef(rAge)); // true
+
+        return {
+            age,
+            rAge
+        }
     }
-};
+}
 </script>
 ```
 
-高级用法：接收一个对象
+高级用法：接收一个对象，可以修改 computed 的值
 
 ```vue
 <template>
-    <p>今年 {{ age }}</p>
-    <p>{{ str }}</p>
-    <button @click="str = 17">click</button>
+    <p>小明今年 {{ age }} 岁了</p>
+    <p>那么明年是多少岁呢？参考答案 {{ rAge }}</p>
+    <p><button @click="rAge = 17">click</button></p>
 </template>
 
 <script>
 import { computed, ref } from 'vue';
 export default {
-    name: 'App',
     setup() {
-        const age = ref(18);
-        // 指定一个函数：是不能给计算属性 str 直接赋值的
-        /* const str = computed(() => {
-            return `xxx 今年 ${age.value} 岁了`;
-        }); */
-        // 指定一个对象
-        const str = computed({
+        let age = ref(18);
+
+        const rAge = computed({
             get() {
-                return `xxx 明年 ${age.value + 1} 岁了`;
+                return age.value + 1;
             },
-            // 当给计算属性赋值的时候会触发这儿
-            set(value) {
-                age.value = value;
-                console.log(`给 str 设置值的时候会触发这里`);
+            set(newValue) {
+                age.value = newValue - 1;
             }
         });
-        return { age, str };
+
+        return {
+            age,
+            rAge
+        };
     }
 };
 </script>
@@ -2464,7 +2500,11 @@ export default {
 </script>
 ```
 
-### 23.5、一个注意点
+## 24. 一个注意点
+
+### 24.1、一个普普通通的需求
+
+点击按钮往数组里面增加内容，监听数组的变化
 
 ```vue
 <template>
@@ -2475,41 +2515,24 @@ export default {
 </template>
 
 <script>
-import { onMounted, reactive, watch } from 'vue';
+import { reactive, watch } from 'vue';
 export default {
     name: 'App',
     setup() {
         const state = reactive({
             arr: []
         });
+
+        // !#1 点击按钮往数组里面新增内容
         const handleClick = () => {
-            // 这里操作的是全新的 state.arr，即 onMounted 中赋值的数组
             state.arr.push(1);
         };
-        onMounted(() => {
-            // !#1 加了这一行发现不会触发 watch 监听了
-            state.arr = [];
-        });
 
-        // 因为这里默认监听的是第一次的 state.arr，而不是 #1 处重新赋值的数组
+        // !#2 监听数组的变化
         watch(state.arr, (newVal) => {
             console.log(newVal);
-        }, {
-            // 其实默认就是深度监听
-            deep: true
         });
 
-        // 解决办法一：监听整个 state
-        /* watch(state, (newVal) => {
-            console.log(newVal);
-        }); */
-
-        // 解决办法二：用 getter 的方式进行深度监听
-        /* watch(() => state.arr, (newVal) => {
-            console.log(newVal);
-        }, {
-            deep: true
-        }); */
         return {
             state,
             handleClick
@@ -2519,15 +2542,251 @@ export default {
 </script>
 ```
 
+### 24.2、设置初始值
 
+```vue
+<template>
+    <ul>
+        <li v-for="(item, index) in state.arr" :key="index">{{ item }}</li>
+    </ul>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { reactive, watch, onMounted } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const state = reactive({
+            arr: []
+        });
+
+        const handleClick = () => {
+            state.arr.push(1);
+        };
+
+        watch(state.arr, (newVal) => {
+            // !#2
+            console.log(newVal);
+        });
+
+        onMounted(() => {
+            // !#1 期望给数组设置一个初始值，发现【粗事了】，#2 处不能触发了
+            state.arr = ['Hello World'];
+        });
+
+        return {
+            state,
+            handleClick
+        };
+    }
+};
+</script>
+```
+
+### 24.3、问题 1
+
+`onMounted` 中对 `state.arr` 进行了重新赋值，为什么没有触发 watch
+
+```js
+// 原因：这句话的意思是，深度监听 state.arr 中内容的变化，不包括 state.arr 本身
+watch(state.arr, (newVal) => {
+    console.log(newVal);
+});
+```
+
+### 24.4、问题 2
+
+点击按钮往 `state.arr` 中 push 内容，为什么还是没有触发监听
+
+```js
+watch(state.arr, (newVal) => {
+    console.log(newVal);
+});
+
+// 原因：上面代码监听的是最初的 state.arr，而这里直接对整个数组进行了重新赋值，点击按钮其实是往下面这个新数组中进行增加内容，当然不会触发监听
+onMounted(() => {
+    state.arr = ['Hello World'];
+});
+```
+
+### 24.5、证明问题 2
+
+```vue
+<template>
+    <ul>
+        <li v-for="(item, index) in state.arr" :key="index">{{ item }}</li>
+    </ul>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { reactive, watch, onMounted } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const state = reactive({
+            arr: []
+        });
+
+        const handleClick = () => {
+            state.arr.push(1);
+
+            // !#2 往原始对象中新增内容
+            originReactiveArr.push('xxx');
+        };
+
+        // !#1 保留原始对象
+        const originReactiveArr = state.arr;
+
+        watch(originReactiveArr, (newVal) => {
+            // !#3 发现确实触发了这里
+            console.log(newVal);
+        });
+
+        onMounted(() => {
+            state.arr = ['Hello World'];
+        });
+
+        return {
+            state,
+            handleClick
+        };
+    }
+};
+</script>
+```
+
+### 24.6、解决方法 1
+
+```vue
+<template>
+    <ul>
+        <li v-for="(item, index) in state.arr" :key="index">{{ item }}</li>
+    </ul>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { reactive, watch, onMounted } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const state = reactive({
+            arr: []
+        });
+
+        const handleClick = () => {
+            state.arr.push(1);
+        };
+
+        // () => state.arr，这句话意思是监听 state.arr 本身的变化，onMounted 完毕直接修改了 state.arr，所以会触发这里
+        // !但是
+        // () => state.arr，这句话并不会监听 state.arr 内容的变化，除非使用深度监听
+        watch(() => state.arr, (newVal) => {
+            console.log(newVal);
+        }, {
+            deep: true
+        });
+
+        onMounted(() => {
+            state.arr = ['Hello World'];
+        });
+
+        return {
+            state,
+            handleClick
+        };
+    }
+};
+</script>
+```
+
+### 24.7、解决方法 2
+
+```vue
+<template>
+    <ul>
+        <li v-for="(item, index) in state.arr" :key="index">{{ item }}</li>
+    </ul>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { reactive, watch, onMounted } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const state = reactive({
+            arr: []
+        });
+
+        const handleClick = () => {
+            state.arr.push(1);
+        };
+
+        // !# 直接写 state，递归监听里面所有内容的变化
+        watch(state, (newVal) => {
+            console.log(newVal);
+        });
+
+        onMounted(() => {
+            state.arr = ['Hello World'];
+        });
+
+        return {
+            state,
+            handleClick
+        };
+    }
+};
+</script>
+```
+
+### 24.8、解决办法 3
+
+```vue
+<template>
+    <ul>
+        <li v-for="(item, index) in state.arr" :key="index">{{ item }}</li>
+    </ul>
+    <button @click="handleClick">click</button>
+</template>
+
+<script>
+import { reactive, watch, onMounted } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const state = reactive({
+            arr: []
+        });
+
+        const handleClick = () => {
+            state.arr.push(1);
+        };
+
+        watch(state.arr, (newVal) => {
+            console.log(newVal);
+        });
+
+        onMounted(() => {
+            // 设置初始值的时候不要改变原引用，包装 watch 监听的数组和这里操作的数组是同一个
+            state.arr.push(...['Hello World']);
+        });
+
+        return {
+            state,
+            handleClick
+        };
+    }
+};
+</script>
+```
 
 ## 24. watchEffect
 
-1、`watchEffect `不需要手动传入依赖
-
-2、`watchEffect` 会先执行一次用来自动收集依赖
-
-3、`watchEffect` 无法获取到变化前的值， 只能获取变化后的值
+`watchEffect ` 会先执行一次用来自动收集依赖，不需要手动传入；无法获取到变化前的值， 只能获取变化后的值
 
 ```vue
 <template>
