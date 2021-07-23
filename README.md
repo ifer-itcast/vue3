@@ -2465,6 +2465,74 @@ export default {
 </script>
 ```
 
+细节
+
+```vue
+<template>
+    <p>{{ obj.hobby.eat }}</p>
+    <!-- <button @click="obj.hobby.eat = '面条'">click</button> -->
+    <button @click="obj.hobby = { eat: '面条' }">click</button>
+</template>
+
+<script>
+import { watch, reactive, isReactive } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const obj = reactive({
+            name: 'ifer',
+            hobby: {
+                eat: '西瓜',
+            },
+        });
+        // 深度监听 obj.hobby 这个 reactive 数据，监听的是里面的内容，不包括 obj.hobby 自身
+        /* watch(obj.hobby, (newValue, oldValue) => {
+            console.log(newValue, oldValue)
+        }); */
+        // 解决：监听它的父亲
+        /* watch(obj, (newValue, oldValue) => {
+            console.log(newValue, oldValue)
+        }); */
+        return { obj };
+    },
+};
+</script>
+```
+
+```vue
+<template>
+    <p>{{ obj.hobby.eat }}</p>
+    <!-- <button @click="obj.hobby ={eat: '面条'}">click</button> -->
+    <button @click="obj.hobby.eat = '面条'">click</button>
+</template>
+
+<script>
+import { watch, reactive, isReactive } from 'vue';
+export default {
+    name: 'App',
+    setup() {
+        const obj = reactive({
+            name: 'ifer',
+            hobby: {
+                eat: '西瓜',
+            },
+        });
+        // 深度监听 obj.hobby 这个 reactive 数据，监听的是里面的内容，不包括 obj.hobby 自身
+        /* watch(obj.hobby, (newValue, oldValue) => {
+            console.log(newValue, oldValue)
+        }); */
+        // 监听 obj.hobby 本身的变化，才会触发回调，不包括里面的内容的变化，【除非进行深度监听】
+        watch(() => obj.hobby, (newValue, oldValue) => {
+            console.log(newValue, oldValue)
+        }, {
+            deep: true
+        });
+        return { obj };
+    },
+};
+</script>
+```
+
 ### 23.4、监听多个数据
 
 ```vue
